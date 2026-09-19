@@ -2,50 +2,67 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Animation 2D flat - demo style "carte / mamie"</title>
+<title>Demo animation 2D flat - sketch dialogue</title>
 <style>
   html,body{margin:0;background:#111;display:flex;justify-content:center}
-  canvas{display:block;width:360px;height:640px;image-rendering:auto}
+  canvas{display:block;width:360px;height:640px}
 </style>
 </head>
 <body>
 <canvas id="c" width="720" height="1280"></canvas>
 <script>
 /* ---------------------------------------------------------------
-   Demo d'animation 2D "flat cartoon" : fond plat, contours noirs
-   epais, personnage rond, lip-sync simplifie, sous-titres incrustes.
-   Tout est deterministe : draw(frame) rend toujours la meme image,
-   ce qui permet une capture image par image sans desynchronisation.
+   Sketch anime 2D "flat" au format vertical.
+   Structure calquee sur l'analyse de la reference :
+     - dialogue en repliques tres courtes, pas de chanson
+     - silences reels entre les repliques (respiration comique)
+     - champ / contrechamp declenche par le changement de locuteur
+     - sous-titres une ligne, pop d'echelle a chaque replique
+   draw(frame) est deterministe : rendu image par image reproductible.
    --------------------------------------------------------------- */
 
-const W = 720, H = 1280;
-const FPS = 25;
-const DURATION = 10;                 // secondes
+const W = 720, H = 1280, FPS = 25, DURATION = 14;
 const TOTAL = FPS * DURATION;
 
 const c = document.getElementById('c');
 const g = c.getContext('2d');
 
 const COL = {
-  ink:       '#000000',
-  wall:      '#e8e39c',
-  red:       '#c66843',
-  tile:      '#f3e5b0',
-  tileLine:  '#d9c98d',
-  wood:      '#755649',
-  woodLight: '#8b7665',
-  table:     '#b27954',
-  tableTop:  '#c49565',
-  skin:      '#edccb0',
-  shirt:     '#1ca597',
-  card:      '#fdfdfd',
-  cardBack:  '#3f7bc4',
-  knob:      '#e8c34a'
+  ink:'#000000', wall:'#e8e39c', red:'#c66843', tile:'#f3e5b0', tileLine:'#d9c98d',
+  wood:'#755649', woodLight:'#8b7665', table:'#b27954', tableTop:'#c49565',
+  skin:'#edccb0', shirt:'#1ca597', top:'#c78cc5', hair:'#f7f7f7',
+  card:'#fdfdfd', cardBack:'#3f7bc4', knob:'#e8c34a', fridge:'#f7f7f7'
 };
-
 const LINE = 9;
 
-/* --- PRNG deterministe (mouchetures du mur, positions des cartes) --- */
+/* --- Dialogue : [debut, fin, locuteur, texte]. Les trous = silence reel. --- */
+const DIALOGUE = [
+  [0.6,  1.5,  'A', 'Kems !'],
+  [1.7,  2.3,  'B', 'Non.'],
+  // 2.3 -> 3.2 : silence
+  [3.2,  4.4,  'A', "Comment ça non"],
+  [4.5,  5.6,  'B', "T'as pas le signe"],
+  // 5.6 -> 6.4 : silence
+  [6.4,  7.2,  'A', 'Mamie.'],
+  [7.4,  8.8,  'B', 'Tu triches depuis 40 ans'],
+  // 8.8 -> 9.6 : silence
+  [9.6,  10.5, 'A', 'Bon.'],
+  [10.7, 12.2, 'A', 'On remet les cartes'],
+  [12.4, 13.7, 'B', 'Et la maison aussi']
+];
+
+function lineAt(t){
+  for (const d of DIALOGUE) if (t >= d[0] && t <= d[1]) return d;
+  return null;
+}
+/* le plan tient jusqu'a la replique suivante : pas de cut dans le silence */
+function shotAt(t){
+  let who = DIALOGUE[0][2];
+  for (const d of DIALOGUE){ if (t >= d[0]) who = d[2]; }
+  return who;
+}
+
+/* --- PRNG deterministe --- */
 function mulberry32(a){
   return function(){
     a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -55,244 +72,223 @@ function mulberry32(a){
   };
 }
 
-/* --- Helpers de dessin : aplat + contour noir epais --- */
+/* --- Primitives : aplat + contour noir epais --- */
 function ink(lw){
   g.lineWidth = lw === undefined ? LINE : lw;
-  g.lineJoin = 'round';
-  g.lineCap = 'round';
-  g.strokeStyle = COL.ink;
-  g.stroke();
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  g.strokeStyle = COL.ink; g.stroke();
 }
-function box(x, y, w, h, fill, lw){
-  g.beginPath(); g.rect(x, y, w, h);
-  if (fill){ g.fillStyle = fill; g.fill(); }
-  ink(lw);
-}
-function disc(x, y, rx, ry, fill, lw){
-  g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-  if (fill){ g.fillStyle = fill; g.fill(); }
-  ink(lw);
-}
-function poly(pts, fill, lw){
-  g.beginPath();
-  pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]));
-  g.closePath();
-  if (fill){ g.fillStyle = fill; g.fill(); }
-  ink(lw);
+function box(x,y,w,h,fill,lw){ g.beginPath(); g.rect(x,y,w,h); if(fill){g.fillStyle=fill;g.fill();} ink(lw); }
+function disc(x,y,rx,ry,fill,lw){ g.beginPath(); g.ellipse(x,y,rx,ry,0,0,Math.PI*2); if(fill){g.fillStyle=fill;g.fill();} ink(lw); }
+function poly(pts,fill,lw){
+  g.beginPath(); pts.forEach((p,i)=> i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])); g.closePath();
+  if(fill){g.fillStyle=fill;g.fill();} ink(lw);
 }
 
-/* --- Decor : cuisine en aplats --- */
-const speckles = (() => {
-  const r = mulberry32(20260919);
-  const out = [];
-  for (let i = 0; i < 90; i++){
-    out.push({
-      x: r() * W, y: r() * 880,
-      a: r() * Math.PI, s: 3 + r() * 5, n: 2 + Math.floor(r() * 3)
-    });
+/* --- Mouchetures du papier peint --- */
+const speckles = (()=>{ const r=mulberry32(20260919), out=[];
+  for(let i=0;i<90;i++) out.push({x:r()*W, y:r()*900, a:r()*Math.PI, s:3+r()*5, n:2+Math.floor(r()*3)});
+  return out; })();
+function drawSpeckles(){
+  g.strokeStyle='#9a9560'; g.lineWidth=2; g.lineCap='round';
+  for(const s of speckles) for(let k=0;k<s.n;k++){
+    const a=s.a+k*(Math.PI*2/s.n);
+    g.beginPath(); g.moveTo(s.x,s.y); g.lineTo(s.x+Math.cos(a)*s.s, s.y+Math.sin(a)*s.s); g.stroke();
   }
-  return out;
-})();
-
-function drawBackground(){
-  // mur
-  g.fillStyle = COL.wall; g.fillRect(0, 0, W, H);
-
-  // mouchetures du papier peint (petites pattes d'araignee)
-  g.strokeStyle = '#9a9560'; g.lineWidth = 2; g.lineCap = 'round';
-  for (const s of speckles){
-    for (let k = 0; k < s.n; k++){
-      const a = s.a + k * (Math.PI * 2 / s.n);
-      g.beginPath();
-      g.moveTo(s.x, s.y);
-      g.lineTo(s.x + Math.cos(a) * s.s, s.y + Math.sin(a) * s.s);
-      g.stroke();
-    }
-  }
-
-  // meuble haut rouge (gauche)
-  box(-20, -20, 260, 320, COL.red);
-  // plan de travail carrele (gauche)
-  box(-20, 300, 260, 560, COL.tile);
-  g.strokeStyle = COL.tileLine; g.lineWidth = 3;
-  for (let y = 380; y < 860; y += 80){
-    g.beginPath(); g.moveTo(-20, y); g.lineTo(240, y); g.stroke();
-  }
-  for (let x = 60; x < 240; x += 90){
-    g.beginPath(); g.moveTo(x, 300); g.lineTo(x, 860); g.stroke();
-  }
-
-  // buffet en bois (droite)
-  box(470, 190, 280, 680, COL.wood);
-  box(500, 230, 105, 600, COL.woodLight, 7);
-  box(620, 230, 105, 600, COL.woodLight, 7);
-  disc(595, 520, 11, 11, COL.knob, 6);
-  disc(632, 520, 11, 11, COL.knob, 6);
 }
 
-/* --- Chaise a barreaux, derriere le personnage --- */
+/* --- Decor A : cote joueur (meubles de cuisine) --- */
+function bgA(){
+  g.fillStyle=COL.wall; g.fillRect(0,0,W,H);
+  drawSpeckles();
+  box(-20,-20,260,320,COL.red);
+  box(-20,300,260,600,COL.tile);
+  g.strokeStyle=COL.tileLine; g.lineWidth=3;
+  for(let y=380;y<900;y+=80){ g.beginPath(); g.moveTo(-20,y); g.lineTo(240,y); g.stroke(); }
+  for(let x=60;x<240;x+=90){ g.beginPath(); g.moveTo(x,300); g.lineTo(x,900); g.stroke(); }
+  box(470,190,280,720,COL.wood);
+  box(500,230,105,640,COL.woodLight,7);
+  box(620,230,105,640,COL.woodLight,7);
+  disc(595,520,11,11,COL.knob,6); disc(632,520,11,11,COL.knob,6);
+}
+
+/* --- Decor B : cote mamie (frigo + cadres photo) --- */
+function bgB(){
+  g.fillStyle=COL.wall; g.fillRect(0,0,W,H);
+  drawSpeckles();
+  box(150,60,470,850,COL.fridge);                 // frigo
+  g.beginPath(); g.moveTo(150,330); g.lineTo(620,330); ink(7);
+  box(560,150,16,120,'#c9c9c9',6);                // poignee
+  const r=mulberry32(5);
+  for(let i=0;i<4;i++){                            // cadres photo sur le mur
+    const x=20+ (i%2)*(i<2?0:0), y=140+i*170;
+    box(14,y,110,140,'#f7f7f7',7);
+    g.fillStyle=['#9fb7a2','#b8b8b8','#d9c08a','#a9c3d6'][i];
+    g.fillRect(24,y+10,90,120);
+    disc(48,y+52,15,15,COL.skin,5); disc(90,y+52,15,15,COL.skin,5);
+  }
+}
+
+/* --- Personnages --- */
 function drawChair(){
-  // montants
-  box(158, 452, 28, 560, COL.wood, 8);
-  box(534, 452, 28, 560, COL.wood, 8);
-  // barreaux horizontaux
-  box(170, 486, 380, 34, COL.woodLight, 8);
-  box(170, 600, 380, 30, COL.woodLight, 8);
-  box(170, 714, 380, 30, COL.woodLight, 8);
+  box(158,452,28,560,COL.wood,8);
+  box(534,452,28,560,COL.wood,8);
+  box(170,486,380,34,COL.woodLight,8);
+  box(170,600,380,30,COL.woodLight,8);
+  box(170,714,380,30,COL.woodLight,8);
 }
 
-/* --- Personnage --- */
-function drawCharacter(t, mouth, blink, brow){
-  const bob = Math.sin(t * Math.PI * 2 * 1.667) * 6;   // 100 BPM
-  g.save();
-  g.translate(0, bob);
+function drawCharacter(who,t,mouth,blink){
+  const bob = Math.sin(t*Math.PI*2*1.4)*5;
+  g.save(); g.translate(0,bob);
 
-  // torse
-  poly([[176, 1010], [222, 806], [288, 758], [432, 758], [498, 806], [544, 1010]], COL.shirt);
+  const shirt = who==='A' ? COL.shirt : COL.top;
+  poly([[176,1010],[222,806],[288,758],[432,758],[498,806],[544,1010]], shirt);
+  poly([[220,846],[158,946],[186,1006],[268,912]], shirt);
+  poly([[500,846],[562,946],[534,1006],[452,912]], shirt);
 
-  // bras
-  poly([[220, 846], [158, 946], [186, 1006], [268, 912]], COL.shirt);
-  poly([[500, 846], [562, 946], [534, 1006], [452, 912]], COL.shirt);
+  disc(360,560,178,172,COL.skin);
 
-  // tete
-  disc(360, 560, 178, 172, COL.skin);
+  if (who==='B'){                                   // cheveux boucles
+    g.beginPath();
+    for(let i=0;i<=34;i++){
+      const a=Math.PI + i/34*Math.PI;
+      const rr=182 + (i%2?14:0);
+      const x=360+Math.cos(a)*rr, y=560+Math.sin(a)*(rr*0.96);
+      i?g.lineTo(x,y):g.moveTo(x,y);
+    }
+    g.closePath(); g.fillStyle=COL.hair; g.fill(); ink(8);
+  }
 
-  // yeux
   const eh = blink ? 3 : 13;
-  disc(292, 566, 12, eh, COL.ink, 0);
-  disc(428, 566, 12, eh, COL.ink, 0);
+  disc(292,566,12,eh,COL.ink,0);
+  disc(428,566,12,eh,COL.ink,0);
 
-  // sourcils (expression)
-  g.strokeStyle = COL.ink; g.lineWidth = 9; g.lineCap = 'round';
-  g.beginPath(); g.moveTo(268, 508 - brow); g.lineTo(320, 500 + brow); g.stroke();
-  g.beginPath(); g.moveTo(400, 500 + brow); g.lineTo(452, 508 - brow); g.stroke();
+  if (who==='B'){                                   // lunettes rondes
+    disc(292,566,52,52,null,8); disc(428,566,52,52,null,8);
+    g.beginPath(); g.moveTo(344,566); g.lineTo(376,566); ink(8);
+  }
 
-  // bouche : lip-sync (ouverture 0..1)
+  g.strokeStyle=COL.ink; g.lineWidth=9; g.lineCap='round';
+  const bl = 498;                                   // sourcils
+  g.beginPath(); g.moveTo(258,bl+8); g.lineTo(322,bl-4); g.stroke();
+  g.beginPath(); g.moveTo(398,bl-4); g.lineTo(462,bl+8); g.stroke();
+  if (who==='B'){ g.restore(); return bob; }        // mamie : bouche plus bas
+
   if (mouth < 0.08){
-    g.beginPath(); g.moveTo(336, 636); g.lineTo(384, 636);
-    g.lineWidth = 9; g.strokeStyle = COL.ink; g.stroke();
+    g.beginPath(); g.moveTo(334,636); g.lineTo(386,636); g.lineWidth=9; g.strokeStyle=COL.ink; g.stroke();
   } else {
-    const rx = 20 + mouth * 16, ry = 6 + mouth * 34;
-    disc(360, 640, rx, ry, COL.ink, 0);
+    disc(360,642, 20+mouth*16, 6+mouth*34, COL.ink, 0);
   }
-
-  g.restore();
-  return bob;
+  g.restore(); return bob;
 }
 
-/* --- Table, mains et cartes --- */
+function drawMouthB(t,mouth,bob){
+  g.save(); g.translate(0,bob);
+  if (mouth < 0.08){
+    g.beginPath(); g.moveTo(330,690); g.lineTo(390,690); g.lineWidth=9; g.strokeStyle=COL.ink; g.stroke();
+  } else {
+    disc(360,694, 18+mouth*14, 5+mouth*28, COL.ink, 0);
+  }
+  g.restore();
+}
+
+/* --- Table, mains, cartes --- */
 function drawTable(bob){
-  box(-20, 1010, W + 40, 320, COL.table, 0);
-  g.beginPath(); g.moveTo(-20, 1010); g.lineTo(W + 20, 1010);
-  g.lineWidth = LINE; g.strokeStyle = COL.ink; g.stroke();
-  g.fillStyle = COL.tableTop; g.fillRect(-20, 1013, W + 40, 16);
+  g.fillStyle=COL.table; g.fillRect(-20,1010,W+40,320);
+  g.beginPath(); g.moveTo(-20,1010); g.lineTo(W+20,1010); g.lineWidth=LINE; g.strokeStyle=COL.ink; g.stroke();
+  g.fillStyle=COL.tableTop; g.fillRect(-20,1013,W+40,16);
 
-  // cartes posees sur la table
-  const r = mulberry32(7);
-  const pips = ['♥', '♠', '♦', '♣'];
-  for (let i = 0; i < 6; i++){
-    const x = 60 + i * 112 + r() * 14;
-    const y = 1130 + r() * 50;
-    const a = (r() - 0.5) * 0.5;
-    g.save(); g.translate(x, y); g.rotate(a);
-    g.beginPath(); g.roundRect(-42, -60, 84, 120, 8);
-    g.fillStyle = COL.card; g.fill(); ink(7);
-    g.fillStyle = (i % 2) ? '#d02a2a' : COL.ink;
-    g.font = 'bold 44px "DejaVu Sans", sans-serif';
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(pips[i % 4], 0, 4);
+  const r=mulberry32(7), pips=['♥','♠','♦','♣'];
+  for(let i=0;i<6;i++){
+    const x=60+i*112+r()*14, y=1130+r()*50, a=(r()-0.5)*0.5;
+    g.save(); g.translate(x,y); g.rotate(a);
+    g.beginPath(); g.roundRect(-42,-60,84,120,8); g.fillStyle=COL.card; g.fill(); ink(7);
+    g.fillStyle=(i%2)?'#d02a2a':COL.ink;
+    g.font='bold 44px "DejaVu Sans", sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(pips[i%4],0,4);
     g.restore();
   }
 
-  // mains + eventail de cartes tenu par le personnage
-  g.save(); g.translate(0, bob);
-  disc(286, 1002, 50, 38, COL.skin);   // main gauche
-  disc(434, 1002, 50, 38, COL.skin);   // main droite
-  for (let i = 0; i < 5; i++){
-    g.save(); g.translate(360, 1012); g.rotate((i - 2) * 0.2);
-    g.beginPath(); g.roundRect(-34, -150, 68, 150, 7);
-    g.fillStyle = COL.cardBack; g.fill(); ink(7);
+  g.save(); g.translate(0,bob);
+  disc(286,1002,50,38,COL.skin);
+  disc(434,1002,50,38,COL.skin);
+  for(let i=0;i<5;i++){
+    g.save(); g.translate(360,1012); g.rotate((i-2)*0.2);
+    g.beginPath(); g.roundRect(-34,-150,68,150,7); g.fillStyle=COL.cardBack; g.fill(); ink(7);
     g.restore();
   }
   g.restore();
 }
 
-/* --- Sous-titres incrustes --- */
-const SUBS = [
-  [0.4, 2.6, "J'ai gardé le roi"],
-  [2.7, 4.9, "au fond de ma manche"],
-  [5.0, 7.2, "mamie me regarde"],
-  [7.3, 9.8, "elle sait que c'est fini"]
-];
-
+/* --- Sous-titres : une ligne, pop d'echelle a l'apparition --- */
 function drawSubtitle(t){
-  const line = SUBS.find(s => t >= s[0] && t <= s[1]);
-  if (!line) return null;
-  const MAXW = W - 80;
-  let size = 58;
-  g.font = 'bold ' + size + 'px "DejaVu Sans", Arial, sans-serif';
-  while (g.measureText(line[2]).width > MAXW && size > 28){
-    size -= 2;
-    g.font = 'bold ' + size + 'px "DejaVu Sans", Arial, sans-serif';
-  }
-  g.lineWidth = Math.max(8, size * 0.26);
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.lineJoin = 'round';
-  g.strokeStyle = COL.ink;
-  g.strokeText(line[2], W / 2, 250);
-  g.fillStyle = '#ffffff';
-  g.fillText(line[2], W / 2, 250);
-  return line;
+  const d = lineAt(t); if (!d) return;
+  const age = t - d[0];
+  // pop : 0.72 -> 1.06 -> 1.0 en 0.18 s
+  let k = 1;
+  if (age < 0.18){ const u = age/0.18; k = 0.72 + (1.06-0.72)*u; }
+  else if (age < 0.28){ const u = (age-0.18)/0.10; k = 1.06 - 0.06*u; }
+
+  const base = 64;
+  let size = base;
+  const fit = () => { g.font = 'bold ' + size + 'px "Liberation Sans Narrow", "DejaVu Sans Condensed", "DejaVu Sans", sans-serif'; };
+  fit();
+  while (g.measureText(d[3]).width * 0.86 > W - 70 && size > 28){ size -= 2; fit(); }
+
+  g.save();
+  g.translate(W/2, 205);
+  g.scale(0.86 * k, k);                 // 0.86 = aspect condense
+  g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round';
+  g.shadowColor = 'rgba(0,0,0,0.45)'; g.shadowBlur = 10; g.shadowOffsetY = 5;
+  g.lineWidth = size*0.30; g.strokeStyle = COL.ink; g.strokeText(d[3],0,0);
+  g.shadowColor = 'transparent';
+  g.lineWidth = size*0.30; g.strokeStyle = COL.ink; g.strokeText(d[3],0,0);
+  g.fillStyle='#ffffff'; g.fillText(d[3],0,0);
+  g.restore();
 }
 
 /* --- Rendu d'une image --- */
 function draw(frame){
-  const t = frame / FPS;
+  const t = frame/FPS;
+  const d = lineAt(t);
+  const who = shotAt(t);
 
-  // bouche : ouverte par salves quand une replique est active
-  const speaking = SUBS.some(s => t >= s[0] && t <= s[1]);
-  const n = mulberry32(frame * 2654435761 >>> 0)();
-  const mouth = speaking
-    ? Math.max(0, Math.sin(t * Math.PI * 2 * 5.2) * 0.6 + n * 0.5)
-    : 0;
-
+  // bouche ouverte uniquement pendant une replique
+  const n = mulberry32(frame*2654435761>>>0)();
+  const mouth = d ? Math.max(0, Math.sin(t*Math.PI*2*5.4)*0.6 + n*0.5) : 0;
   const blink = (t % 3.1) < 0.12;
-  const brow = speaking ? 6 : 0;
 
-  // legere poussee camera
-  const zoom = 1 + t / DURATION * 0.03;
+  // petite poussee caméra relancée a chaque plan (cut sur changement de locuteur)
+  let shotStart = 0;
+  for (const e of DIALOGUE){ if (t >= e[0] && e[2] === who) { shotStart = e[0]; break; } }
+  const zoom = 1 + Math.min(0.035, (t - shotStart) * 0.006);
+
+  g.clearRect(0,0,W,H);
   g.save();
-  g.clearRect(0, 0, W, H);
-  g.translate(W / 2, H * 0.52);
-  g.scale(zoom, zoom);
-  g.translate(-W / 2, -H * 0.52);
+  g.translate(W/2,H*0.52); g.scale(zoom,zoom); g.translate(-W/2,-H*0.52);
 
-  drawBackground();
+  if (who==='A') bgA(); else bgB();
   drawChair();
-  const bob = drawCharacter(t, mouth, blink, brow);
+  const bob = drawCharacter(who,t,mouth,blink);
+  if (who==='B') drawMouthB(t,mouth,bob);
   drawTable(bob);
   g.restore();
 
   drawSubtitle(t);
 }
 
-/* --- Lecture dans le navigateur + point d'entree pour la capture --- */
 window.TOTAL_FRAMES = TOTAL;
 window.FPS = FPS;
 window.drawFrame = draw;
-
 let playing = true;
-const start = performance.now();
-function loop(){
-  if (!playing) return;
-  const t = ((performance.now() - start) / 1000) % DURATION;
-  draw(Math.floor(t * FPS));
-  requestAnimationFrame(loop);
-}
-// la capture desactive la lecture temps reel
 window.stopPlayback = () => { playing = false; };
-loop();
+const start = performance.now();
+(function loop(){
+  if(!playing) return;
+  draw(Math.floor(((performance.now()-start)/1000 % DURATION)*FPS));
+  requestAnimationFrame(loop);
+})();
 </script>
 </body>
 </html>

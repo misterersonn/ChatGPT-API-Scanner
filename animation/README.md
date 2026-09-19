@@ -10,7 +10,9 @@ incrustés) avec une chaîne entièrement reproductible.
 | --- | --- |
 | `scene.html` | Toute l'animation : décor, chaise, personnage, lip-sync, sous-titres. `drawFrame(n)` est déterministe. |
 | `render.js` | Capture image par image via Chromium (Playwright) puis séquence PNG. |
-| `demo_animation.mp4` | Rendu : 720×1280, 25 fps, 10 s, muet. |
+| `demo_animation.mp4` | Rendu : 720×1280, 25 fps, 14 s, muet. |
+| `subtitles.srt` | Timeline du dialogue exportée depuis `scene.html`. |
+| `ANALYSE.md` | Relevés image + son faits sur la vidéo de référence. |
 
 ## Rendu
 
@@ -30,11 +32,15 @@ pour régler le timing avant de lancer un rendu.
 - **Décor** : `drawBackground()` (meubles, carrelage, mouchetures du papier peint).
 - **Chaise** : `drawChair()` — montants + barreaux, dessinée derrière le personnage.
 - **Personnage** : `drawCharacter()` — tête, yeux, sourcils, bouche.
+- **Dialogue** : tableau `DIALOGUE` — `[début, fin, locuteur, texte]`. Les trous
+  entre deux entrées sont des silences réels : la bouche se ferme et le plan est
+  tenu, comme dans la référence.
+- **Montage** : `shotAt()` coupe au changement de locuteur, jamais pendant un silence.
 - **Lip-sync** : l'ouverture de bouche est calculée dans `draw()`. Pour un vrai
   calage sur une voix, remplacer la salve pseudo-aléatoire par une liste
   `[temps, ouverture]` issue de l'analyse de la piste audio.
-- **Sous-titres** : tableau `SUBS` — `[début, fin, texte]`, mise à l'échelle
-  automatique pour ne jamais déborder du cadre.
+- **Sous-titres** : `drawSubtitle()` — une ligne, condensée, contour noir, pop
+  d'échelle à chaque réplique, mise à l'échelle automatique pour ne jamais déborder.
 - **Durée / cadence** : `DURATION` et `FPS`.
 
 ## Ajouter le son
