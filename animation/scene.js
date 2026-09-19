@@ -1,0 +1,496 @@
+/* ===================================================================
+   Sketch anime 2D "flat", format vertical.
+   Principes tires de l'analyse de la reference :
+     - dialogue en repliques courtes, silences reels tenus a l'image
+     - echelles de plan tres contrastees (large / moyen / gros / tres gros)
+     - lip-sync par SUBSTITUTION de formes de bouche, pas par morphing
+     - animation du personnage "sur 2" (12,5 i/s) ; camera lisse
+     - yeux a plusieurs etats : points, grands ronds (choc), paupieres (colere)
+   draw(frame) est deterministe.
+   =================================================================== */
+
+const W = 720, H = 1280, FPS = 25, DURATION = 15;
+const TOTAL = FPS * DURATION;
+const STEP = 2;                     // animation du perso sur 2 images
+
+const c = document.getElementById('c');
+const g = c.getContext('2d');
+
+const COL = {
+  ink:'#000', wall:'#e8e39c', wallDeep:'#ddd68d', ceiling:'#f7e6c4',
+  red:'#c66843', redDark:'#b05b39', tile:'#f3e5b0', tileLine:'#d9c98d',
+  wood:'#755649', woodLight:'#8b7665', woodDark:'#5e453b',
+  table:'#b27954', tableTop:'#c49565',
+  skin:'#edccb0', skinLine:'#000', shirt:'#1ca597', top:'#c78cc5', hair:'#f7f7f7',
+  card:'#fdfdfd', cardBack:'#3f7bc4', knob:'#e8c34a', fridge:'#f7f7f7',
+  eyeWhite:'#fff'
+};
+const LINE = 9;
+
+/* -------------------------------------------------------------------
+   TIMELINE
+   [t0, t1, qui, texte|null, plan, emotion, accent]
+   plan     : 'wide' | 'med' | 'cu' | 'xcu'
+   emotion  : 'flat' | 'happy' | 'angry' | 'shock' | 'smug'
+   Les entrees sans texte sont des silences tenus (respiration comique).
+   ------------------------------------------------------------------- */
+const BEATS = [
+  [0.4,  1.4,  'A', 'Kems !',                  'med',  'happy', true ],
+  [1.6,  2.2,  'B', 'Non.',                    'cu',   'flat',  false],
+  [2.2,  3.1,  'B', null,                      'xcu',  'flat',  false],
+  [3.1,  4.3,  'A', 'Comment ça non',          'med',  'angry', false],
+  [4.4,  5.5,  'B', "T'as pas le signe",       'cu',   'smug',  false],
+  [5.5,  6.3,  'A', null,                      'cu',   'shock', false],
+  [6.3,  7.1,  'A', 'Mamie.',                  'xcu',  'flat',  false],
+  [7.3,  8.7,  'B', 'Tu triches depuis 40 ans','med',  'angry', true ],
+  [8.7,  9.6,  'A', null,                      'xcu',  'shock', false],
+  [9.6,  10.4, 'A', 'Bon.',                    'med',  'flat',  false],
+  [10.6, 12.1, 'A', 'On remet les cartes',     'wide', 'happy', false],
+  [12.3, 13.7, 'B', 'Et la maison aussi',      'cu',   'smug',  true ],
+  [13.7, 15.0, 'A', null,                      'xcu',  'shock', false]
+];
+
+function beatAt(t){
+  let cur = BEATS[0];
+  for (const b of BEATS) if (t >= b[0]) cur = b;
+  return cur;
+}
+function lineAt(t){
+  for (const b of BEATS) if (b[3] && t >= b[0] && t <= b[1]) return b;
+  return null;
+}
+
+/* --- PRNG deterministe --- */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const rnd1 = n => mulberry32((n * 2654435761) >>> 0)();
+
+/* --- Primitives --- */
+function ink(lw){
+  if (lw === 0) return;              // 0 est invalide en Canvas : on ne trace pas
+  g.lineWidth = lw === undefined ? LINE : lw;
+  g.lineJoin='round'; g.lineCap='round'; g.strokeStyle=COL.ink; g.stroke();
+}
+function box(x,y,w,h,fill,lw){ g.beginPath(); g.rect(x,y,w,h); if(fill){g.fillStyle=fill;g.fill();} ink(lw); }
+function disc(x,y,rx,ry,fill,lw){ g.beginPath(); g.ellipse(x,y,rx,ry,0,0,Math.PI*2); if(fill){g.fillStyle=fill;g.fill();} ink(lw); }
+function poly(pts,fill,lw){
+  g.beginPath(); pts.forEach((p,i)=> i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])); g.closePath();
+  if(fill){g.fillStyle=fill;g.fill();} ink(lw);
+}
+function scallop(cx,cy,r,bumps,amp,fill){
+  g.beginPath();
+  for(let i=0;i<bumps;i++){
+    const a0=i/bumps*Math.PI*2, a1=(i+1)/bumps*Math.PI*2, am=(a0+a1)/2;
+    const x0=cx+Math.cos(a0)*r,  y0=cy+Math.sin(a0)*r*0.99;
+    const xm=cx+Math.cos(am)*(r+amp), ym=cy+Math.sin(am)*((r+amp)*0.99);
+    const x1=cx+Math.cos(a1)*r,  y1=cy+Math.sin(a1)*r*0.99;
+    if(i===0) g.moveTo(x0,y0);
+    g.quadraticCurveTo(xm,ym,x1,y1);
+  }
+  g.closePath(); g.fillStyle=fill; g.fill(); ink(8);
+}
+function stroke(pts,lw){
+  g.beginPath(); pts.forEach((p,i)=> i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));
+  g.lineWidth=lw||7; g.lineJoin='round'; g.lineCap='round'; g.strokeStyle=COL.ink; g.stroke();
+}
+
+/* ============================== DECORS ============================== */
+const speckles = (()=>{ const r=mulberry32(20260919), out=[];
+  for(let i=0;i<260;i++) out.push({x:-600+r()*1920, y:-500+r()*2100, a:r()*Math.PI, s:4+r()*7, n:2+Math.floor(r()*3)});
+  return out; })();
+function drawSpeckles(){
+  g.strokeStyle='#9a9560'; g.lineWidth=2.5; g.lineCap='round';
+  for(const s of speckles) for(let k=0;k<s.n;k++){
+    const a=s.a+k*(Math.PI*2/s.n);
+    g.beginPath(); g.moveTo(s.x,s.y); g.lineTo(s.x+Math.cos(a)*s.s, s.y+Math.sin(a)*s.s); g.stroke();
+  }
+}
+
+function bgA(){                                   /* cote joueur : cuisine */
+  g.fillStyle=COL.wall;    g.fillRect(-600,-600,1920,2600);
+  g.fillStyle=COL.ceiling; g.fillRect(-600,-600,1920,520);
+  stroke([[-600,-80],[1320,-80]], 9);
+  // suspension
+  g.beginPath();
+  g.moveTo(240,-600); g.lineTo(240,-380); g.lineTo(140,-300);
+  for(let i=0;i<=12;i++){ const x=140+i*(200/12); g.lineTo(x, -300 + (i%2?16:0)); }
+  g.lineTo(340,-300); g.lineTo(240,-380); g.closePath();
+  g.fillStyle='#fff8ec'; g.fill(); ink(8);
+  drawSpeckles();
+  // meuble haut rouge + tiroirs
+  box(-420,-60,640,360,COL.red);
+  box(-380,-20,260,140,COL.redDark,7);
+  box(-100,-20,260,140,COL.redDark,7);
+  // plan de travail carrele
+  box(-420,300,640,700,COL.tile);
+  g.strokeStyle=COL.tileLine; g.lineWidth=3;
+  for(let y=380;y<1000;y+=84){ g.beginPath(); g.moveTo(-420,y); g.lineTo(220,y); g.stroke(); }
+  for(let x=-340;x<220;x+=92){ g.beginPath(); g.moveTo(x,300); g.lineTo(x,1000); g.stroke(); }
+  // buffet en bois
+  box(470,150,420,860,COL.wood);
+  box(504,196,168,760,COL.woodLight,7);
+  box(690,196,168,760,COL.woodLight,7);
+  disc(660,560,12,12,COL.knob,6); disc(702,560,12,12,COL.knob,6);
+  // horloge murale
+  disc(1010,180,86,86,'#fff8ec',9);
+  stroke([[1010,180],[1010,122]],8); stroke([[1010,180],[1050,200]],8);
+}
+
+function bgB(){                                   /* cote mamie : frigo + cadres */
+  g.fillStyle=COL.wall;    g.fillRect(-600,-600,1920,2600);
+  g.fillStyle=COL.ceiling; g.fillRect(-600,-600,1920,520);
+  stroke([[-600,-80],[1320,-80]], 9);
+  drawSpeckles();
+  // frigo
+  box(130,-40,520,1050,COL.fridge);
+  stroke([[130,300],[650,300]],8);
+  box(586,40,18,150,'#cfcfcf',6);
+  box(586,350,18,150,'#cfcfcf',6);
+  // magnets
+  disc(200,150,16,16,'#d94f4f',5); disc(250,190,16,16,'#4f86d9',5);
+  // cadres photo
+  const tint=['#9fb7a2','#c9c9c9','#d9c08a','#a9c3d6'];
+  for(let i=0;i<4;i++){
+    const x=-250+(i%2)*150, y=60+Math.floor(i/2)*230;
+    box(x,y,128,170,'#fff8ec',7);
+    g.fillStyle=tint[i]; g.fillRect(x+12,y+12,104,146);
+    // minuscules bonshommes dans le cadre
+    disc(x+44,y+72,20,20,COL.skin,5); disc(x+88,y+72,20,20,COL.skin,5);
+    poly([[x+24,y+158],[x+30,y+104],[x+58,y+104],[x+64,y+158]],'#7a9e7a',5);
+    poly([[x+68,y+158],[x+74,y+104],[x+102,y+104],[x+108,y+158]],'#8a7ab0',5);
+  }
+  // porte a droite
+  box(760,-60,420,1070,COL.woodDark);
+  box(800,-20,340,990,COL.wood,8);
+  disc(1112,520,14,14,COL.knob,6);
+}
+
+/* ======================== BOUCHES (visemes) ======================== */
+function mouthShape(v, x, y, s){
+  s = s || 1;
+  switch(v){
+    case 'closed': stroke([[x-28*s,y],[x+28*s,y]], 9); break;
+    case 'M':      stroke([[x-30*s,y-3],[x,y+3],[x+30*s,y-3]], 9); break;
+    case 'C':      disc(x,y+2, 22*s, 9*s,  COL.ink, 0); break;
+    case 'F':      disc(x,y+2, 24*s, 7*s,  COL.ink, 0); break;
+    case 'A':      disc(x,y+8, 34*s, 40*s, COL.ink, 0); break;
+    case 'E':      disc(x,y+4, 40*s, 20*s, COL.ink, 0); break;
+    case 'I':      disc(x,y+2, 42*s, 12*s, COL.ink, 0); break;
+    case 'O':      disc(x,y+6, 24*s, 30*s, COL.ink, 0); break;
+    case 'U':      disc(x,y+4, 17*s, 20*s, COL.ink, 0); break;
+    case 'smile':  g.beginPath(); g.arc(x,y-14,34*s,0.18*Math.PI,0.82*Math.PI);
+                   g.lineWidth=9; g.strokeStyle=COL.ink; g.lineCap='round'; g.stroke(); break;
+    case 'frown':  g.beginPath(); g.arc(x,y+30,30*s,1.18*Math.PI,1.82*Math.PI);
+                   g.lineWidth=9; g.strokeStyle=COL.ink; g.lineCap='round'; g.stroke(); break;
+    default:       stroke([[x-28*s,y],[x+28*s,y]], 9);
+  }
+}
+
+/* Texte -> suite de visemes, repartis sur la duree de la replique. */
+const VOW = 'aàâäeéèêëiîïoôöuùûüy';
+function visemeTrack(text, t0, t1){
+  const s = text.toLowerCase().replace(/[^a-zà-ÿ ]/g,'');
+  const seq = [];
+  let i = 0;
+  while (i < s.length){
+    const ch = s[i];
+    if (ch === ' '){ if (seq[seq.length-1] !== 'closed') seq.push('closed'); i++; continue; }
+    if ('mbp'.includes(ch)){ seq.push('M'); i++; continue; }
+    if (VOW.includes(ch)){
+      let j = i; while (j < s.length && VOW.includes(s[j])) j++;
+      const h = s[i];
+      let v = 'A';
+      if ('àâäa'.includes(h)) v='A';
+      else if ('eéèêë'.includes(h)) v='E';
+      else if ('iîïy'.includes(h)) v='I';
+      else if ('oôö'.includes(h)) v='O';
+      else v='U';
+      seq.push(v); i = j; continue;
+    }
+    if ('fv'.includes(ch)) seq.push('F'); else seq.push('C');
+    i++;
+  }
+  if (!seq.length) seq.push('C');
+  const dur = t1 - t0;
+  const unit = Math.max(0.055, dur / seq.length);
+  return { seq, t0, unit, t1 };
+}
+const TRACKS = new Map();
+for (const b of BEATS) if (b[3]) TRACKS.set(b[0], visemeTrack(b[3], b[0], b[1]));
+
+function mouthAt(t){
+  const b = lineAt(t);
+  if (!b) return 'closed';
+  const tr = TRACKS.get(b[0]);
+  const k = Math.floor((t - tr.t0) / tr.unit);
+  return k >= 0 && k < tr.seq.length ? tr.seq[k] : 'closed';
+}
+
+/* ============================ PERSONNAGE ============================ */
+function drawEyes(who, emo, blink, look){
+  const L = {x:292, y:566}, R = {x:428, y:566};
+  const glasses = who === 'B';
+
+  if (blink){
+    stroke([[L.x-24,L.y],[L.x+24,L.y]], 9);
+    stroke([[R.x-24,R.y],[R.x+24,R.y]], 9);
+  } else if (emo === 'shock'){
+    for (const e of [L,R]){
+      disc(e.x, e.y, 40, 40, COL.eyeWhite, 8);
+      disc(e.x + look*10, e.y + 2, 11, 11, COL.ink, 0);
+    }
+  } else if (emo === 'angry' || emo === 'smug'){
+    for (const e of [L,R]){
+      disc(e.x, e.y, 32, 32, COL.eyeWhite, 8);
+      disc(e.x + look*9, e.y + 6, 12, 12, COL.ink, 0);
+    }
+    // paupieres lourdes, inclinees vers l'interieur
+    g.save();
+    g.beginPath(); g.ellipse(L.x,L.y,32,32,0,0,Math.PI*2); g.clip();
+    poly([[L.x-40,L.y-40],[L.x+40,L.y-40],[L.x+40,L.y- (emo==='angry'? 2 : 10)],[L.x-40,L.y-24]], COL.skin, 0);
+    g.restore();
+    stroke([[L.x-34,L.y-24],[L.x+34,L.y-(emo==='angry'?2:10)]], 8);
+    g.save();
+    g.beginPath(); g.ellipse(R.x,R.y,32,32,0,0,Math.PI*2); g.clip();
+    poly([[R.x-40,R.y-40],[R.x+40,R.y-40],[R.x+40,R.y-24],[R.x-40,R.y-(emo==='angry'?2:10)]], COL.skin, 0);
+    g.restore();
+    stroke([[R.x-34,R.y-(emo==='angry'?2:10)],[R.x+34,R.y-24]], 8);
+  } else {
+    disc(L.x + look*5, L.y, 12, 13, COL.ink, 0);
+    disc(R.x + look*5, R.y, 12, 13, COL.ink, 0);
+  }
+
+  if (glasses){
+    disc(L.x, L.y, 56, 56, null, 8);
+    disc(R.x, R.y, 56, 56, null, 8);
+    stroke([[L.x+56,L.y],[R.x-56,L.y]], 8);
+  }
+}
+
+function drawBrows(emo){
+  const y = 486;
+  if (emo === 'angry'){
+    stroke([[254,y-8],[326,y+26]], 10);
+    stroke([[394,y+26],[466,y-8]], 10);
+  } else if (emo === 'shock'){
+    stroke([[256,y-30],[328,y-40]], 10);
+    stroke([[392,y-40],[464,y-30]], 10);
+  } else if (emo === 'smug'){
+    stroke([[254,y+6],[326,y-14]], 10);
+    stroke([[394,y+10],[466,y+14]], 10);
+  } else if (emo === 'happy'){
+    stroke([[256,y-6],[328,y-20]], 10);
+    stroke([[392,y-20],[464,y-6]], 10);
+  } else {
+    stroke([[258,y+6],[326,y-2]], 10);
+    stroke([[394,y-2],[462,y+6]], 10);
+  }
+}
+
+function drawHead(who, pose){
+  g.save();
+  g.translate(360, 700 + pose.nod);
+  g.rotate(pose.rot);
+  g.scale(pose.sx, pose.sy);
+  g.translate(-360, -700);
+
+  if (who === 'B') scallop(360, 516, 206, 12, 34, COL.hair);   // chevelure
+
+  disc(360, 560, 178, 174, COL.skin);                          // visage
+
+  if (who === 'B'){                                            // rides
+    stroke([[232,650],[266,658]], 5); stroke([[228,678],[262,684]], 5);
+    stroke([[454,658],[488,650]], 5); stroke([[458,684],[492,678]], 5);
+  }
+
+  drawBrows(pose.emo);
+  drawEyes(who, pose.emo, pose.blink, pose.look);
+
+  const my = who === 'B' ? 694 : 648;
+  mouthShape(pose.mouth, 360, my, 1);
+
+  g.restore();
+}
+
+function drawBody(who, pose){
+  const shirt = who === 'A' ? COL.shirt : COL.top;
+  // buste
+  poly([[168,1030],[216,812],[286,758],[434,758],[504,812],[552,1030]], shirt);
+  // avant-bras poses sur la table
+  const lift = pose.lift;                       // remontee des mains quand il parle
+  poly([[214,856],[150,972],[176,1032],[262,924]], shirt);
+  poly([[506,856],[570,972],[544,1032],[458,924]], shirt);
+  g.save(); g.translate(0, -lift);
+  disc(276, 1004, 52, 38, COL.skin);
+  disc(444, 1004, 52, 38, COL.skin);
+  g.restore();
+}
+
+function drawHandCards(pose){
+  g.save(); g.translate(0, -pose.lift);
+  for (let i=0;i<5;i++){
+    g.save();
+    g.translate(360, 1016);
+    g.rotate((i-2)*0.19 + pose.fan);
+    g.beginPath(); g.roundRect(-34,-152,68,152,7);
+    g.fillStyle = COL.cardBack; g.fill(); ink(7);
+    g.restore();
+  }
+  g.restore();
+}
+
+function drawTable(){
+  g.fillStyle = COL.table; g.fillRect(-600,1010,1920,990);
+  stroke([[-600,1010],[1320,1010]], LINE);
+  g.fillStyle = COL.tableTop; g.fillRect(-600,1013,1920,18);
+
+  const r = mulberry32(11);
+  const pips = ['♥','♠','♦','♣'];
+  const spots = [[-40,1210],[90,1160],[215,1235],[330,1150],[455,1225],[585,1165],[700,1240],[790,1145]];
+  spots.forEach((p,i)=>{
+    const a = (r()-0.5)*0.7;
+    g.save(); g.translate(p[0]+r()*20, p[1]+r()*30); g.rotate(a);
+    g.beginPath(); g.roundRect(-46,-64,92,128,9); g.fillStyle=COL.card; g.fill(); ink(7);
+    const red = i%2 === 1;
+    g.fillStyle = red ? '#d02a2a' : COL.ink;
+    g.font = 'bold 46px "DejaVu Sans", sans-serif';
+    g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(pips[i%4], 0, 4);
+    g.restore();
+  });
+  // pioche
+  g.save(); g.translate(-120,1120); g.rotate(-0.08);
+  for(let k=0;k<4;k++){
+    g.beginPath(); g.roundRect(-46,-64-k*5,92,128,9);
+    g.fillStyle=COL.cardBack; g.fill(); ink(7);
+  }
+  g.restore();
+}
+
+/* ============================== CAMERA ============================== */
+const SHOTS = {
+  wide: { s:0.95, fx:360, fy:596, rot: 0.00 },
+  med:  { s:1.00, fx:360, fy:604, rot: 0.00 },
+  cu:   { s:1.75, fx:330, fy:560, rot:-0.03 },
+  xcu:  { s:2.55, fx:305, fy:548, rot: 0.05 }
+};
+
+/* ============================ SOUS-TITRES ============================ */
+function drawSubtitle(t){
+  const b = lineAt(t); if (!b) return;
+  const age = t - b[0];
+  let k = 1;
+  if (age < 0.16){ k = 0.70 + (1.07-0.70)*(age/0.16); }
+  else if (age < 0.26){ k = 1.07 - 0.07*((age-0.16)/0.10); }
+
+  let size = 66;
+  const fit = () => { g.font = 'bold ' + size + 'px "Liberation Sans Narrow","DejaVu Sans",sans-serif'; };
+  fit();
+  while (g.measureText(b[3]).width * 0.85 > W - 64 && size > 28){ size -= 2; fit(); }
+
+  g.save();
+  g.translate(W/2, 208);
+  g.scale(0.85*k, k);
+  g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round';
+  g.shadowColor='rgba(0,0,0,0.5)'; g.shadowBlur=12; g.shadowOffsetY=6;
+  g.lineWidth=size*0.32; g.strokeStyle=COL.ink; g.strokeText(b[3],0,0);
+  g.shadowColor='transparent';
+  g.lineWidth=size*0.32; g.strokeStyle=COL.ink; g.strokeText(b[3],0,0);
+  g.fillStyle='#fff'; g.fillText(b[3],0,0);
+  g.restore();
+}
+
+/* ============================== RENDU ============================== */
+function draw(frame){
+  const t  = frame / FPS;                       // temps lisse  -> camera
+  const ts = (Math.floor(frame/STEP)*STEP)/FPS; // temps "sur 2" -> personnage
+
+  const beat = beatAt(ts);
+  const who = beat[2], emo = beat[5], emph = beat[6];
+  const speaking = !!lineAt(ts);
+  const age = ts - beat[0];
+
+  /* --- pose du personnage --- */
+  const n1 = rnd1(Math.floor(ts*6));
+  const n2 = rnd1(Math.floor(ts*6)+900);
+
+  // anticipation : petit recul puis avancee au demarrage de la replique
+  let punch = 0;
+  if (speaking && age < 0.22) punch = Math.sin(age/0.22*Math.PI) * (emph ? 1 : 0.55);
+
+  // position dans la syllabe courante -> hochement de tete
+  let vi = -1, vprog = 0;
+  if (speaking){
+    const tr = TRACKS.get(beat[0]);
+    const k = (ts - tr.t0) / tr.unit;
+    vi = Math.floor(k); vprog = k - vi;
+  }
+  const nod = speaking ? Math.sin(vprog*Math.PI)*9 + (vi%2 ? 3 : -3) : Math.sin(ts*1.9)*2;
+
+  const pose = {
+    rot:  (n1-0.5)*0.10 + (speaking ? Math.sin(ts*4.2)*0.03 : Math.sin(ts*0.8)*0.012) - punch*0.09,
+    nod,
+    sx:   1 + punch*0.05 + (speaking ? Math.sin(ts*9)*0.006 : 0),
+    sy:   1 - punch*0.05 + (emo==='shock' ? 0.03 : 0),
+    emo,
+    blink: emo !== 'shock' && ((ts + (who==='A'?0:1.3)) % 3.4) < 0.14,
+    look: Math.round((rnd1(Math.floor(ts*1.6))-0.5)*2),
+    mouth: speaking ? mouthAt(ts)
+                    : (emo==='happy' ? 'smile' : emo==='shock' ? 'O' : emo==='angry' ? 'frown' : 'closed'),
+    lift: (speaking ? 10 : 0) + punch*26,
+    fan:  (n2-0.5)*0.05 + punch*0.12
+  };
+
+  /* --- camera --- */
+  const sh = SHOTS[beat[4]];
+  const tAge = t - beat[0];
+  const push = Math.min(0.05, tAge*0.012);
+  const drift = Math.sin(t*0.9)*4 + Math.sin(t*2.3)*1.6;     // leger flottement
+  let shake = 0;
+  if (emph && speaking && tAge < 0.2) shake = Math.sin(tAge*90)*7*(1-tAge/0.2);
+  const s = sh.s * (1+push);
+
+  g.clearRect(0,0,W,H);
+  g.save();
+  g.translate(W/2 + drift*0.3 + shake, H*0.46 + drift*0.2);
+  g.rotate(sh.rot);
+  g.scale(s,s);
+  g.translate(-sh.fx, -sh.fy);
+
+  if (who === 'A') bgA(); else bgB();
+  // chaise
+  box(158,470,30,580,COL.woodDark,8);
+  box(532,470,30,580,COL.woodDark,8);
+  box(168,806,384,34,COL.wood,8);
+  box(168,902,384,32,COL.wood,8);
+
+  // appui corporel : respiration, balancement, avancee sur l'accent
+  const breath = Math.sin(ts*2.0)*3.5;
+  const lean   = (speaking ? Math.sin(ts*3.1)*0.018 : Math.sin(ts*1.1)*0.008) - punch*0.055;
+  const cdx    = Math.sin(ts*0.7)*4 + punch*8;
+  const cdy    = breath + punch*14;
+  const charX  = () => { g.translate(360,1010); g.rotate(lean); g.translate(-360,-1010); g.translate(cdx,cdy); };
+
+  g.save(); charX(); drawBody(who, pose); drawHead(who, pose); g.restore();
+  drawTable();
+  g.save(); charX(); drawHandCards(pose); g.restore();
+  g.restore();
+
+  drawSubtitle(t);
+}
+
+window.TOTAL_FRAMES = TOTAL; window.FPS = FPS; window.drawFrame = draw;
+let playing = window.AUTOPLAY !== false;
+window.stopPlayback = () => { playing = false; };
+const t0 = performance.now();
+(function loop(){
+  if(!playing) return;
+  draw(Math.floor(((performance.now()-t0)/1000 % DURATION)*FPS));
+  requestAnimationFrame(loop);
+})();
