@@ -25,7 +25,7 @@ const COL = {
   card:'#fdfdfd', cardBack:'#3f7bc4', knob:'#e8c34a', fridge:'#f7f7f7',
   eyeWhite:'#fff'
 };
-const LINE = 9;
+const LINE = 12;              // ~3,3 % du diametre de tete, comme la reference
 
 /* -------------------------------------------------------------------
    TIMELINE
@@ -232,10 +232,50 @@ function mouthAt(t){
   return k >= 0 && k < tr.seq.length ? tr.seq[k] : 'closed';
 }
 
+/* ============================ PERSONNAGES ============================
+   Chaque personnage est une fiche. Ajouter un perso = ajouter une entree.
+   hair.style : 'none' | 'cap' | 'mop' | 'curly'
+   -------------------------------------------------------------------- */
+const CHARS = {
+  A: { skin:'#edccb0', top:'#1ca597', hair:{style:'none'},                  glasses:false, wrinkles:false, mouthY:648 },
+  B: { skin:'#edccb0', top:'#c78cc5', hair:{style:'curly', color:'#f7f7f7'}, glasses:true,  wrinkles:true,  mouthY:694 }
+};
+function ch(who){ return CHARS[who] || CHARS.A; }
+
+/* --- Chevelures --- */
+function hairCap(cx, cy, r, color, drop, part){
+  g.beginPath();
+  const a0 = Math.PI*1.02, a1 = Math.PI*1.98;
+  g.moveTo(cx+Math.cos(a0)*(r+5), cy+Math.sin(a0)*(r+5));
+  for (let i=1;i<=34;i++){
+    const a = a0 + (a1-a0)*i/34;
+    g.lineTo(cx+Math.cos(a)*(r+5), cy+Math.sin(a)*(r+5));
+  }
+  const yR = cy - r*drop + r*part, yL = cy - r*drop - r*part;
+  g.quadraticCurveTo(cx + r*0.55, yR + r*0.18, cx, (yR+yL)/2 + r*0.10);
+  g.quadraticCurveTo(cx - r*0.55, yL + r*0.18, cx+Math.cos(a0)*(r+5), cy+Math.sin(a0)*(r+5));
+  g.closePath(); g.fillStyle=color; g.fill(); ink(9);
+}
+function hairMop(cx, cy, r, color){
+  g.beginPath();
+  const a0 = Math.PI*0.98, a1 = Math.PI*2.02;
+  g.moveTo(cx+Math.cos(a0)*(r+8), cy+Math.sin(a0)*(r+8));
+  for (let i=1;i<=34;i++){
+    const a = a0 + (a1-a0)*i/34;
+    g.lineTo(cx+Math.cos(a)*(r+8), cy+Math.sin(a)*(r+8));
+  }
+  const y = cy - r*0.16;
+  for (let k=0;k<4;k++){
+    const x0 = cx + r*(0.66 - k*0.44), x1 = cx + r*(0.66 - (k+1)*0.44);
+    g.quadraticCurveTo((x0+x1)/2, y + r*0.32, x1, y - r*0.05);
+  }
+  g.closePath(); g.fillStyle=color; g.fill(); ink(9);
+}
+
 /* ============================ PERSONNAGE ============================ */
 function drawEyes(who, emo, blink, look){
   const L = {x:292, y:566}, R = {x:428, y:566};
-  const glasses = who === 'B';
+  const glasses = !!ch(who).glasses;
 
   if (blink){
     stroke([[L.x-24,L.y],[L.x+24,L.y]], 9);
@@ -300,11 +340,16 @@ function drawHead(who, pose){
   g.scale(pose.sx, pose.sy);
   g.translate(-360, -700);
 
-  if (who === 'B') scallop(360, 516, 206, 12, 34, COL.hair);   // chevelure
+  const C = ch(who), hair = C.hair || {style:'none'};
 
-  disc(360, 560, 178, 174, COL.skin);                          // visage
+  if (hair.style === 'curly') scallop(360, 516, 206, 12, 34, hair.color || COL.hair);
 
-  if (who === 'B'){                                            // rides
+  disc(360, 560, 178, 174, C.skin);                            // visage
+
+  if (hair.style === 'cap') hairCap(360, 560, 178, hair.color || '#6b4a32', 0.34, hair.part || 0.07);
+  if (hair.style === 'mop') hairMop(360, 560, 178, hair.color || '#6b4a32');
+
+  if (C.wrinkles){
     stroke([[232,650],[266,658]], 5); stroke([[228,678],[262,684]], 5);
     stroke([[454,658],[488,650]], 5); stroke([[458,684],[492,678]], 5);
   }
@@ -312,14 +357,13 @@ function drawHead(who, pose){
   drawBrows(pose.emo);
   drawEyes(who, pose.emo, pose.blink, pose.look);
 
-  const my = who === 'B' ? 694 : 648;
-  mouthShape(pose.mouth, 360, my, 1);
+  mouthShape(pose.mouth, 360, C.mouthY, 1);
 
   g.restore();
 }
 
 function drawBody(who, pose){
-  const shirt = who === 'A' ? COL.shirt : COL.top;
+  const shirt = ch(who).top;
   // buste
   poly([[168,1030],[216,812],[286,758],[434,758],[504,812],[552,1030]], shirt);
   // avant-bras poses sur la table
@@ -327,12 +371,12 @@ function drawBody(who, pose){
   poly([[214,856],[150,972],[176,1032],[262,924]], shirt);
   poly([[506,856],[570,972],[544,1032],[458,924]], shirt);
   g.save(); g.translate(0, -lift);
-  disc(276, 1004, 52, 38, COL.skin);
-  disc(444, 1004, 52, 38, COL.skin);
+  disc(276, 1004, 52, 38, ch(who).skin);
+  disc(444, 1004, 52, 38, ch(who).skin);
   g.restore();
 }
 
-function drawHandCards(pose){
+function drawHandCards(pose, who){
   g.save(); g.translate(0, -pose.lift);
   for (let i=0;i<5;i++){
     g.save();
@@ -479,7 +523,7 @@ function draw(frame){
 
   g.save(); charX(); drawBody(who, pose); drawHead(who, pose); g.restore();
   drawTable();
-  g.save(); charX(); drawHandCards(pose); g.restore();
+  g.save(); charX(); drawHandCards(pose, who); g.restore();
   g.restore();
 
   drawSubtitle(t);
