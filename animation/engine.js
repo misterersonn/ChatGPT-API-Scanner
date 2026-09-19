@@ -9,7 +9,9 @@
    draw(frame) est deterministe.
    =================================================================== */
 
-const W = 720, H = 1280, FPS = 25, DURATION = 15;
+const EP = window.EPISODE || {};
+const W = 720, H = 1280, FPS = 25;
+const DURATION = EP.duration || 15;
 const TOTAL = FPS * DURATION;
 const STEP = 2;                     // animation du perso sur 2 images
 
@@ -23,7 +25,11 @@ const COL = {
   table:'#b27954', tableTop:'#c49565',
   skin:'#edccb0', skinLine:'#000', shirt:'#1ca597', top:'#c78cc5', hair:'#f7f7f7',
   card:'#fdfdfd', cardBack:'#3f7bc4', knob:'#e8c34a', fridge:'#f7f7f7',
-  eyeWhite:'#fff'
+  eyeWhite:'#fff',
+  // salon
+  livWall:'#e4dfc2', sofa:'#7d9bb0', sofaDark:'#6b88a0', sofaFoot:'#5e453b',
+  rug:'#c0704f', sky:'#bcd9e8', leaf:'#4f8f5f', pot:'#c66843',
+  screen:'#33373b', lamp:'#f0e0b8', phone:'#2b2f33'
 };
 const LINE = 12;              // ~3,3 % du diametre de tete, comme la reference
 
@@ -34,21 +40,16 @@ const LINE = 12;              // ~3,3 % du diametre de tete, comme la reference
    emotion  : 'flat' | 'happy' | 'angry' | 'shock' | 'smug'
    Les entrees sans texte sont des silences tenus (respiration comique).
    ------------------------------------------------------------------- */
-const BEATS = [
-  [0.4,  1.4,  'A', 'Kems !',                  'med',  'happy', true ],
-  [1.6,  2.2,  'B', 'Non.',                    'cu',   'flat',  false],
-  [2.2,  3.1,  'B', null,                      'xcu',  'flat',  false],
-  [3.1,  4.3,  'A', 'Comment ça non',          'med',  'angry', false],
-  [4.4,  5.5,  'B', "T'as pas le signe",       'cu',   'smug',  false],
-  [5.5,  6.3,  'A', null,                      'cu',   'shock', false],
-  [6.3,  7.1,  'A', 'Mamie.',                  'xcu',  'flat',  false],
-  [7.3,  8.7,  'B', 'Tu triches depuis 40 ans','med',  'angry', true ],
-  [8.7,  9.6,  'A', null,                      'xcu',  'shock', false],
-  [9.6,  10.4, 'A', 'Bon.',                    'med',  'flat',  false],
-  [10.6, 12.1, 'A', 'On remet les cartes',     'wide', 'happy', false],
-  [12.3, 13.7, 'B', 'Et la maison aussi',      'cu',   'smug',  true ],
-  [13.7, 15.0, 'A', null,                      'xcu',  'shock', false]
+const PROTO_BEATS = [
+  [0.4,1.4,'A','Kems !','med','happy',true],[1.6,2.2,'B','Non.','cu','flat',false],
+  [2.2,3.1,'B',null,'xcu','flat',false],[3.1,4.3,'A','Comment ça non','med','angry',false],
+  [4.4,5.5,'B',"T'as pas le signe",'cu','smug',false],[5.5,6.3,'A',null,'cu','shock',false],
+  [6.3,7.1,'A','Mamie.','xcu','flat',false],[7.3,8.7,'B','Tu triches depuis 40 ans','med','angry',true],
+  [8.7,9.6,'A',null,'xcu','shock',false],[9.6,10.4,'A','Bon.','med','flat',false],
+  [10.6,12.1,'A','On remet les cartes','wide','happy',false],
+  [12.3,13.7,'B','Et la maison aussi','cu','smug',true],[13.7,15.0,'A',null,'xcu','shock',false]
 ];
+const BEATS = EP.beats || PROTO_BEATS;
 
 function beatAt(t){
   let cur = BEATS[0];
@@ -237,9 +238,14 @@ function mouthAt(t){
    hair.style : 'none' | 'cap' | 'mop' | 'curly'
    -------------------------------------------------------------------- */
 const CHARS = {
-  A: { skin:'#edccb0', top:'#1ca597', hair:{style:'none'},                  glasses:false, wrinkles:false, mouthY:648 },
-  B: { skin:'#edccb0', top:'#c78cc5', hair:{style:'curly', color:'#f7f7f7'}, glasses:true,  wrinkles:true,  mouthY:694 }
+  // --- distribution de la chaine ---
+  R: { name:'Robin', skin:'#edccb0', top:'#d9534f', hair:{style:'cap', color:'#6b4a32', part:0.09}, glasses:false, wrinkles:false, mouthY:648 },
+  S: { name:'Sam',   skin:'#e0bb9c', top:'#e0883a', hair:{style:'mop', color:'#3a2a1e'},            glasses:false, wrinkles:false, mouthY:648 },
+  // --- personnages du prototype, conserves ---
+  A: { name:'joueur', skin:'#edccb0', top:'#1ca597', hair:{style:'none'},                  glasses:false, wrinkles:false, mouthY:648 },
+  B: { name:'mamie',  skin:'#edccb0', top:'#c78cc5', hair:{style:'curly', color:'#f7f7f7'}, glasses:true,  wrinkles:true,  mouthY:694 }
 };
+Object.assign(CHARS, (window.EPISODE && window.EPISODE.chars) || {});
 function ch(who){ return CHARS[who] || CHARS.A; }
 
 /* --- Chevelures --- */
@@ -293,12 +299,12 @@ function drawEyes(who, emo, blink, look){
     // paupieres lourdes, inclinees vers l'interieur
     g.save();
     g.beginPath(); g.ellipse(L.x,L.y,32,32,0,0,Math.PI*2); g.clip();
-    poly([[L.x-40,L.y-40],[L.x+40,L.y-40],[L.x+40,L.y- (emo==='angry'? 2 : 10)],[L.x-40,L.y-24]], COL.skin, 0);
+    poly([[L.x-40,L.y-40],[L.x+40,L.y-40],[L.x+40,L.y- (emo==='angry'? 2 : 10)],[L.x-40,L.y-24]], ch(who).skin, 0);
     g.restore();
     stroke([[L.x-34,L.y-24],[L.x+34,L.y-(emo==='angry'?2:10)]], 8);
     g.save();
     g.beginPath(); g.ellipse(R.x,R.y,32,32,0,0,Math.PI*2); g.clip();
-    poly([[R.x-40,R.y-40],[R.x+40,R.y-40],[R.x+40,R.y-24],[R.x-40,R.y-(emo==='angry'?2:10)]], COL.skin, 0);
+    poly([[R.x-40,R.y-40],[R.x+40,R.y-40],[R.x+40,R.y-24],[R.x-40,R.y-(emo==='angry'?2:10)]], ch(who).skin, 0);
     g.restore();
     stroke([[R.x-34,R.y-(emo==='angry'?2:10)],[R.x+34,R.y-24]], 8);
   } else {
@@ -365,11 +371,13 @@ function drawHead(who, pose){
 function drawBody(who, pose){
   const shirt = ch(who).top;
   // buste
-  poly([[168,1030],[216,812],[286,758],[434,758],[504,812],[552,1030]], shirt);
+  // Pas de cou : le haut du vetement monte au-dessus du menton (tete a y=734),
+  // la tete etant dessinee ensuite, elle recouvre l'encolure. Comme la reference.
+  poly([[164,1030],[206,790],[276,690],[444,690],[514,790],[556,1030]], shirt);
   // avant-bras poses sur la table
   const lift = pose.lift;                       // remontee des mains quand il parle
-  poly([[214,856],[150,972],[176,1032],[262,924]], shirt);
-  poly([[506,856],[570,972],[544,1032],[458,924]], shirt);
+  poly([[206,828],[146,960],[172,1026],[258,910]], shirt);
+  poly([[514,828],[574,960],[548,1026],[462,910]], shirt);
   g.save(); g.translate(0, -lift);
   disc(276, 1004, 52, 38, ch(who).skin);
   disc(444, 1004, 52, 38, ch(who).skin);

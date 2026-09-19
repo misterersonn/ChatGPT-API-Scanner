@@ -8,10 +8,11 @@ incrustés) avec une chaîne entièrement reproductible.
 
 | Fichier | Rôle |
 | --- | --- |
-| `scene.js` | Toute l'animation : décor, chaise, personnages, visèmes, expressions, caméra. `drawFrame(n)` est déterministe. |
-| `scene.html` | Page de lecture temps réel qui charge `scene.js`. |
+|  `engine.js` | Le moteur : décor, chaise, personnages, visèmes, expressions, caméra. `drawFrame(n)` est déterministe. |
+| `scene.html` | Page de lecture temps réel qui charge `engine.js`. |
 | `sheet.html` + `render_sheet.js` | Planche de référence (expressions, visèmes, échelles de plan, palette). |
 | `style_reference.png` | La planche rendue — à fournir comme référence de style à un générateur d'images. |
+| `robin.html` + `render_robin.js` | Pistes de design pour Robin → `robin_pistes.png`. |
 | `HIGGSFIELD.md` | Appel Recraft préparé et état du blocage côté plan. |
 | `render.js` | Capture image par image via Chromium (Playwright) puis séquence PNG. |
 | `demo_animation.mp4` | Rendu : 720×1280, 25 fps, 15 s, muet. |
