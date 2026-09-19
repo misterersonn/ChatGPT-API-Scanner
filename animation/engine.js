@@ -172,6 +172,96 @@ function bgB(){                                   /* cote mamie : frigo + cadres
   disc(1112,520,14,14,COL.knob,6);
 }
 
+
+function bgPosteFront(){            /* derriere Robin : cote public */
+  g.fillStyle='#e9e4d4'; g.fillRect(-600,-600,1920,2600);
+  g.fillStyle=COL.ceiling; g.fillRect(-600,-600,1920,480);
+  stroke([[-600,-120],[1320,-120]], 9);
+  // bandeau mural
+  g.fillStyle='#f0d84a'; g.fillRect(-600,-120,1920,120);
+  stroke([[-600,0],[1320,0]], 9);
+  // affiches
+  const tint=['#7fb0d6','#e79a5a','#8fc08f'];
+  for(let i=0;i<3;i++){
+    const x=-480+i*420;
+    box(x,120,300,420,'#fff8ec',8);
+    g.fillStyle=tint[i]; g.fillRect(x+22,142,256,240);
+    box(x+22,410,256,34,'#d8d2c0',5);
+    box(x+22,462,180,26,'#d8d2c0',5);
+  }
+  // potelets de file d'attente
+  for(const x of [-300,180,660]){
+    box(x,700,26,320,'#9aa0a6',8); disc(x+13,690,26,16,'#c8ccd0',7);
+  }
+  stroke([[-287,710],[193,710]], 7); stroke([[193,710],[673,710]], 7);
+  // porte vitree a droite
+  box(940,-60,340,1080,'#b8c9cf',9);
+  stroke([[1110,-60],[1110,1020]], 8);
+}
+
+function bgPosteBack(){             /* derriere l'agent : cote arriere-guichet */
+  g.fillStyle='#e9e4d4'; g.fillRect(-600,-600,1920,2600);
+  g.fillStyle=COL.ceiling; g.fillRect(-600,-600,1920,480);
+  stroke([[-600,-120],[1320,-120]], 9);
+  // rayonnage a colis
+  box(-420,-40,1160,1060,'#c9b79a');
+  for(let r=0;r<3;r++){
+    const y=-40+r*354;
+    stroke([[-420,y+354],[740,y+354]], 8);
+    const w=[[ -390,150,'#b9905f'],[-210,210,'#a8784a'],[40,170,'#c9a26a'],[240,230,'#b9905f'],[500,200,'#a8784a']];
+    for(const [x,bw,col] of w){
+      const bh=120+((x+r*37)%3)*36;
+      box(x, y+354-bh, bw, bh, col, 7);
+      stroke([[x, y+354-bh*0.45],[x+bw, y+354-bh*0.45]], 5);
+    }
+  }
+  // panneau GUICHET
+  box(760,60,420,180,'#2f6fb0',9);
+  g.fillStyle='#fff'; g.font='bold 96px "Liberation Sans Narrow","DejaVu Sans",sans-serif';
+  g.textAlign='center'; g.textBaseline='middle'; g.fillText('3', 970, 152);
+}
+
+/* Comptoir : remplace la table de cartes */
+function drawCounter(){
+  g.fillStyle='#cdbfa4'; g.fillRect(-600,1010,1920,990);
+  stroke([[-600,1010],[1320,1010]], LINE);
+  g.fillStyle='#ded2ba'; g.fillRect(-600,1013,1920,20);
+  // rebord + petite balance
+  box(-120,1120,300,26,'#b6a789',7);
+  box(520,1090,220,70,'#9aa0a6',8);
+  box(548,1104,164,28,'#3b4046',6);
+}
+function drawCounterProps(pose, who){
+  g.save(); g.translate(0,-pose.lift);
+  disc(276,1004,52,38, ch(who).skin);
+  disc(444,1004,52,38, ch(who).skin);
+  if (ch(who).prop === 'phone'){
+    g.save(); g.translate(360,1000); g.rotate(-0.12);
+    g.beginPath(); g.roundRect(-46,-96,92,150,12); g.fillStyle=COL.phone; g.fill(); ink(8);
+    g.fillStyle='#8fb8d8'; g.fillRect(-34,-84,68,120);
+    g.restore();
+  }
+  if (ch(who).prop === 'paper'){
+    g.save(); g.translate(360,1006); g.rotate(0.06);
+    box(-70,-90,140,100,'#fdfdfd',7);
+    stroke([[-48,-62],[48,-62]],5); stroke([[-48,-38],[20,-38]],5);
+    g.restore();
+  }
+  g.restore();
+}
+
+/* Registre : un decor = un fond, un avant-plan, ses accessoires */
+const DECORS = {
+  cuisine:     { bg: bgA,          front: drawTable,   props: drawHandCards, seat: true  },
+  frigo:       { bg: bgB,          front: drawTable,   props: drawHandCards, seat: true  },
+  posteClient: { bg: bgPosteFront, front: drawCounter, props: drawCounterProps, seat: false },
+  posteAgent:  { bg: bgPosteBack,  front: drawCounter, props: drawCounterProps, seat: false }
+};
+function decorFor(who){
+  const map = EP.decor || { A:'cuisine', B:'frigo' };
+  return DECORS[map[who]] || DECORS.cuisine;
+}
+
 /* ======================== BOUCHES (visemes) ======================== */
 function mouthShape(v, x, y, s){
   s = s || 1;
@@ -464,8 +554,14 @@ function draw(frame){
   const ts = (Math.floor(frame/STEP)*STEP)/FPS; // temps "sur 2" -> personnage
 
   const beat = beatAt(ts);
+  // La replique parlee n'est pas forcement le beat courant : quand un silence
+  // demarre exactement ou une replique finit, les deux se chevauchent d'un instant.
+  // On garde donc les deux separement, sinon la piste de visemes est cherchee
+  // sur le mauvais beat et n'existe pas.
+  const line = lineAt(ts);
   const who = beat[2], emo = beat[5], emph = beat[6];
-  const speaking = !!lineAt(ts);
+  // on n'anime la bouche que si le personnage a l'image est bien celui qui parle
+  const speaking = !!line && line[2] === who;
   const age = ts - beat[0];
 
   /* --- pose du personnage --- */
@@ -479,7 +575,7 @@ function draw(frame){
   // position dans la syllabe courante -> hochement de tete
   let vi = -1, vprog = 0;
   if (speaking){
-    const tr = TRACKS.get(beat[0]);
+    const tr = TRACKS.get(line[0]);
     const k = (ts - tr.t0) / tr.unit;
     vi = Math.floor(k); vprog = k - vi;
   }
@@ -515,12 +611,14 @@ function draw(frame){
   g.scale(s,s);
   g.translate(-sh.fx, -sh.fy);
 
-  if (who === 'A') bgA(); else bgB();
-  // chaise
-  box(158,470,30,580,COL.woodDark,8);
-  box(532,470,30,580,COL.woodDark,8);
-  box(168,806,384,34,COL.wood,8);
-  box(168,902,384,32,COL.wood,8);
+  const D = decorFor(who);
+  D.bg();
+  if (D.seat){                                  // chaise a barreaux
+    box(158,470,30,580,COL.woodDark,8);
+    box(532,470,30,580,COL.woodDark,8);
+    box(168,806,384,34,COL.wood,8);
+    box(168,902,384,32,COL.wood,8);
+  }
 
   // appui corporel : respiration, balancement, avancee sur l'accent
   const breath = Math.sin(ts*2.0)*3.5;
@@ -530,8 +628,8 @@ function draw(frame){
   const charX  = () => { g.translate(360,1010); g.rotate(lean); g.translate(-360,-1010); g.translate(cdx,cdy); };
 
   g.save(); charX(); drawBody(who, pose); drawHead(who, pose); g.restore();
-  drawTable();
-  g.save(); charX(); drawHandCards(pose, who); g.restore();
+  D.front();
+  g.save(); charX(); D.props(pose, who); g.restore();
   g.restore();
 
   drawSubtitle(t);

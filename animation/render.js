@@ -1,12 +1,13 @@
-/* Capture deterministe de scene.html image par image via Chromium,
+/* Capture deterministe d'un episode image par image via Chromium,
    puis encodage en MP4 vertical avec ffmpeg.
-   Usage : node render.js [dossier_de_sortie] */
+   Usage : node render.js [episode] [dossier_de_sortie] */
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 
 (async () => {
-  const outDir = process.argv[2] || path.join(__dirname, 'out');
+  const episode = process.argv[2] || 'ep01-la-poste';
+  const outDir = process.argv[3] || path.join(__dirname, 'out', episode);
   const frameDir = path.join(outDir, 'frames');
   fs.mkdirSync(frameDir, { recursive: true });
 
@@ -15,7 +16,7 @@ const fs = require('fs');
     args: ['--force-device-scale-factor=1', '--hide-scrollbars']
   });
   const page = await browser.newPage({ viewport: { width: 720, height: 1280 } });
-  await page.goto('file://' + path.join(__dirname, 'scene.html'));
+  await page.goto('file://' + path.join(__dirname, 'player.html') + '?ep=' + episode);
   await page.evaluate(() => window.stopPlayback());
 
   const total = await page.evaluate(() => window.TOTAL_FRAMES);
