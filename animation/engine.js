@@ -174,14 +174,14 @@ function bgB(){                                   /* cote mamie : frigo + cadres
 
 
 function bgPosteFront(){            /* derriere Robin : cote public */
-  g.fillStyle='#e9e4d4'; g.fillRect(-600,-600,1920,2600);
+  g.fillStyle='#efe2bc'; g.fillRect(-600,-600,1920,2600);
   g.fillStyle=COL.ceiling; g.fillRect(-600,-600,1920,480);
   stroke([[-600,-120],[1320,-120]], 9);
   // bandeau mural
   g.fillStyle='#f0d84a'; g.fillRect(-600,-120,1920,120);
   stroke([[-600,0],[1320,0]], 9);
   // affiches
-  const tint=['#7fb0d6','#e79a5a','#8fc08f'];
+  const tint=['#5f9fd0','#e08a44','#6fae6f'];
   for(let i=0;i<3;i++){
     const x=-480+i*420;
     box(x,120,300,420,'#fff8ec',8);
@@ -189,6 +189,7 @@ function bgPosteFront(){            /* derriere Robin : cote public */
     box(x+22,410,256,34,'#d8d2c0',5);
     box(x+22,462,180,26,'#d8d2c0',5);
   }
+  drawSpeckles();
   // potelets de file d'attente
   for(const x of [-300,180,660]){
     box(x,700,26,320,'#9aa0a6',8); disc(x+13,690,26,16,'#c8ccd0',7);
@@ -200,9 +201,10 @@ function bgPosteFront(){            /* derriere Robin : cote public */
 }
 
 function bgPosteBack(){             /* derriere l'agent : cote arriere-guichet */
-  g.fillStyle='#e9e4d4'; g.fillRect(-600,-600,1920,2600);
+  g.fillStyle='#efe2bc'; g.fillRect(-600,-600,1920,2600);
   g.fillStyle=COL.ceiling; g.fillRect(-600,-600,1920,480);
   stroke([[-600,-120],[1320,-120]], 9);
+  drawSpeckles();
   // rayonnage a colis
   box(-420,-40,1160,1060,'#c9b79a');
   for(let r=0;r<3;r++){
@@ -223,11 +225,11 @@ function bgPosteBack(){             /* derriere l'agent : cote arriere-guichet *
 
 /* Comptoir : remplace la table de cartes */
 function drawCounter(){
-  g.fillStyle='#cdbfa4'; g.fillRect(-600,1010,1920,990);
+  g.fillStyle='#b9854f'; g.fillRect(-600,1010,1920,990);
   stroke([[-600,1010],[1320,1010]], LINE);
-  g.fillStyle='#ded2ba'; g.fillRect(-600,1013,1920,20);
+  g.fillStyle='#cd9a63'; g.fillRect(-600,1013,1920,20);
   // rebord + petite balance
-  box(-120,1120,300,26,'#b6a789',7);
+  box(-120,1120,300,26,'#9d6f41',7);
   box(520,1090,220,70,'#9aa0a6',8);
   box(548,1104,164,28,'#3b4046',6);
 }
@@ -315,10 +317,21 @@ function visemeTrack(text, t0, t1){
 const TRACKS = new Map();
 for (const b of BEATS) if (b[3]) TRACKS.set(b[0], visemeTrack(b[3], b[0], b[1]));
 
+/* Correspondance lettre -> viseme pour les pistes precalculees.
+   Une piste est une chaine, un caractere par image a 25 i/s, calee sur
+   l'enveloppe d'energie du fichier voix. C'est ce qui synchronise
+   reellement la bouche avec la parole : la repartition uniforme des
+   visemes sur la duree ne tombait jamais juste. */
+const VIS_MAP = {'.':'closed','M':'M','C':'C','F':'F','A':'A','E':'E','I':'I','O':'O','U':'U'};
 function mouthAt(t){
   const b = lineAt(t);
   if (!b) return 'closed';
-  const tr = TRACKS.get(b[0]);
+  if (b[7]){                                   // piste audio disponible
+    const k = Math.floor((t - b[0]) * FPS);
+    const ch = b[7][k];
+    return ch ? (VIS_MAP[ch] || 'closed') : 'closed';
+  }
+  const tr = TRACKS.get(b[0]);                 // secours : repartition uniforme
   const k = Math.floor((t - tr.t0) / tr.unit);
   return k >= 0 && k < tr.seq.length ? tr.seq[k] : 'closed';
 }
@@ -517,10 +530,10 @@ function drawTable(){
 
 /* ============================== CAMERA ============================== */
 const SHOTS = {
-  wide: { s:0.95, fx:360, fy:596, rot: 0.00 },
-  med:  { s:1.00, fx:360, fy:604, rot: 0.00 },
-  cu:   { s:1.75, fx:330, fy:560, rot:-0.03 },
-  xcu:  { s:2.55, fx:305, fy:548, rot: 0.05 }
+  wide: { s:0.62, fx:360, fy:640, rot: 0.00 },
+  med:  { s:0.95, fx:360, fy:604, rot: 0.00 },
+  cu:   { s:1.28, fx:344, fy:574, rot:-0.02 },
+  xcu:  { s:1.75, fx:330, fy:560, rot: 0.04 }
 };
 
 /* ============================ SOUS-TITRES ============================ */
@@ -575,9 +588,14 @@ function draw(frame){
   // position dans la syllabe courante -> hochement de tete
   let vi = -1, vprog = 0;
   if (speaking){
-    const tr = TRACKS.get(line[0]);
-    const k = (ts - tr.t0) / tr.unit;
-    vi = Math.floor(k); vprog = k - vi;
+    if (line[7]){
+      const k = (ts - line[0]) * FPS;
+      vi = Math.floor(k); vprog = k - vi;
+    } else {
+      const tr = TRACKS.get(line[0]);
+      const k = (ts - tr.t0) / tr.unit;
+      vi = Math.floor(k); vprog = k - vi;
+    }
   }
   const nod = speaking ? Math.sin(vprog*Math.PI)*9 + (vi%2 ? 3 : -3) : Math.sin(ts*1.9)*2;
 

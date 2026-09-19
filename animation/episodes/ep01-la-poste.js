@@ -1,8 +1,10 @@
 /* Les vidéos de Robin — épisode 01 : « Robin à la Poste »
-   Voix : Chatterbox Multilingual (MIT), validées et normalisées.
-   Timeline générée depuis les durées réelles — ne pas éditer les temps à la main. */
+   beats : [t0, t1, qui, texte|null, plan, émotion, accent, piste_bouche]
+   La piste de bouche est calculée sur l'audio réel (tools/lipsync.py) :
+   un caractère par image à 25 i/s, les voyelles tombent sur les syllabes.
+   Fichier généré — ne pas éditer les temps ni les pistes à la main. */
 window.EPISODE = {
-  id: 'ep01-la-poste', title: 'Robin à la Poste', duration: 24.51, audio: 'ep01_voix.wav',
+  id: 'ep01-la-poste', title: 'Robin à la Poste', duration: 24.61, audio: 'ep01_voix.wav',
   chars: {
     R: { name:'Robin',   skin:'#edccb0', top:'#d9534f', hair:{style:'cap', color:'#6b4a32', part:0.09},
          glasses:false, wrinkles:false, mouthY:648, prop:'phone' },
@@ -11,20 +13,20 @@ window.EPISODE = {
   },
   decor: { R:'posteClient', S:'posteAgent' },
   beats: [
-    [0.4, 1.42, "R", "Je viens chercher un colis", "med", "flat", true],
-    [1.67, 4.03, "S", "Vous avez l'avis de passage", "cu", "flat", false],
-    [4.03, 4.98, "R", null, "xcu", "shock", false],
-    [4.98, 8.58, "R", "On m'a rien laissé", "med", "flat", false],
-    [8.83, 11.47, "S", "Alors il est pas arrivé", "cu", "smug", false],
-    [11.47, 12.42, "R", null, "xcu", "shock", false],
-    [12.42, 13.76, "R", "Le suivi dit livré", "med", "angry", true],
-    [14.01, 15.97, "S", "Le suivi se trompe jamais", "cu", "smug", false],
-    [15.97, 17.02, "R", null, "xcu", "shock", false],
-    [17.02, 17.97, "R", "Donc il est arrivé", "med", "flat", false],
-    [18.22, 19.44, "S", "Je viens de vous dire que non", "cu", "angry", true],
-    [19.44, 20.49, "R", null, "xcu", "shock", false],
-    [20.49, 21.39, "R", "Vous avez dit les deux", "med", "flat", false],
-    [21.64, 23.01, "S", "Guichet suivant", "cu", "smug", true],
-    [23.01, 24.51, "R", null, "xcu", "shock", false]
+    [0.4, 1.42, "R", "Je viens chercher un colis", "wide", "flat", true, "MCCEEECEEECEEECCUUUCIII.."],
+    [1.67, 4.03, "S", "Vous avez l'avis de passage", "med", "flat", false, ".OOOCCAAACCAAACCIIICEEECAAA.........M............E........"],
+    [4.03, 4.98, "R", null, "cu", "flat", false, ""],
+    [4.98, 8.58, "R", "On m'a rien laissé", "med", "flat", false, ".OOOCCCAAAMMAAAMMEEE..........................................................M.M.....MM."],
+    [8.83, 11.47, "S", "Alors il est pas arrivé", "cu", "smug", false, "..CAAACCMCIIIMAAACAAACCEEECCM.........MMM.....MMMM.M.....MMMMMMM.."],
+    [11.47, 12.42, "R", null, "med", "shock", false, ""],
+    [12.42, 13.76, "R", "Le suivi dit livré", "cu", "angry", true, ".EEECMUUUIIIM......CCIIICCCEEEM.."],
+    [14.01, 15.97, "S", "Le suivi se trompe jamais", "med", "smug", false, "..EEECCUUUCIIICOOOMMEEECCCCAAAC........CCAAACCM."],
+    [15.97, 17.02, "R", null, "cu", "shock", false, ""],
+    [17.02, 17.97, "R", "Donc il est arrivé", "med", "flat", false, "..OOOCCEEEC.AAACCEEEM.."],
+    [18.22, 19.44, "S", "Je viens de vous dire que non", "cu", "angry", true, "CEEECEEECCIIIEEECC..OOOCCCMM.."],
+    [19.44, 20.49, "R", null, "med", "shock", false, ""],
+    [20.49, 21.39, "R", "Vous avez dit les deux", "med", "flat", false, ".MOOOCCAAAEEEEEEMEEE.."],
+    [21.64, 23.01, "S", "Guichet suivant", "cu", "smug", true, ".CCUUUCCEEECCCUUUUUUCCM.......AAAC"],
+    [23.01, 24.61, "R", null, "xcu", "shock", false, ""]
   ]
 };
