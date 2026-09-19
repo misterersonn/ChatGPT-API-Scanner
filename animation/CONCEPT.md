@@ -88,3 +88,36 @@ C'est ce qui fait tenir le champ/contrechamp.
 Robin, son design, les décors et tous les textes sont originaux.
 Ce qui est repris de la vidéo de référence, ce sont des **mesures** (contour, proportions,
 palette, rythme) et un **format** — ni personnages, ni dialogues, ni contenu.
+
+## Chaîne de production des voix
+
+Les voix sont générées localement avec **Chatterbox Multilingual** (licence MIT,
+donc utilisable commercialement) — aucun service, aucun crédit.
+
+Le modèle n'est pas fiable tel quel en français : il lui arrive de continuer à
+parler après la phrase, et sa hauteur de voix varie fortement d'une génération à
+l'autre. Trois garde-fous, dans cet ordre :
+
+1. **Validation par les syllabes** (`tools/cb_generate.py`) — on compte les syllabes
+   du texte, on en déduit une durée attendue, et on rejette toute prise dont la
+   parole dépasse 180 % de cette durée ou qui contient du son après un blanc de
+   0,5 s. À chaque nouvel essai, `cfg_weight` monte : le modèle colle davantage au
+   texte, au prix d'un peu d'expressivité. On garde le premier essai propre, donc
+   toujours le réglage le plus expressif qui passe.
+2. **Normalisation de hauteur** — chaque prise est transposée vers la hauteur
+   cible de son personnage (Robin 150 Hz, l'agent 115 Hz, soit 4,5 demi-tons
+   d'écart). Sans ça, chaque réplique sonne comme quelqu'un de différent.
+3. **Compression et normalisation de niveau** — passe-haut à 80 Hz, compresseur,
+   `loudnorm` à −17 LUFS. C'est ce qui donne le grain sec et dense de la référence.
+
+Relevés sur le pilote :
+
+| Mesure | Référence | Piper | Chatterbox retenu |
+| --- | --- | --- | --- |
+| Intonation (écart-type de hauteur) | 3,8 à 3,9 dt | 2,5 dt | **4,5 à 5,4 dt** |
+| Dispersion de hauteur par personnage | — | — | 0,7 dt après normalisation |
+| Écart entre les deux voix | — | — | 4,5 dt |
+
+**Limite connue** : la transposition par rééchantillonnage déplace les formants.
+Au-delà de 4 ou 5 demi-tons, le timbre se dégrade. La boucle vise donc des prises
+dont la hauteur naturelle est déjà proche de la cible, plutôt que de transposer fort.
