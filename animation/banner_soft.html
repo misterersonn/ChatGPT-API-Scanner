@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Banniere douce</title>
+<style>html,body{margin:0;background:#222}canvas{display:block}</style></head>
+<body>
+<canvas id="c" width="2560" height="1440"></canvas>
+<script src="soft.js"></script>
+<script>
+const X = document.getElementById('c').getContext('2d');
+const CW = 2560, CH = 1440;
+const SAFE = { x:(CW-1546)/2, y:(CH-423)/2, w:1546, h:423 };
+const HORIZON = 830;
+
+softSky(X, CW, CH, HORIZON+40);
+softCloud(X, 320, 200, 1.5);
+softCloud(X, 1180, 140, 1.1);
+softCloud(X, 2050, 230, 1.7);
+softCloud(X, 1640, 320, 0.9);
+softHills(X, CW, HORIZON);
+softFence(X, CW, HORIZON-120, 190);
+softGrass(X, CW, CH, HORIZON+10, 20260923);
+
+/* Robin, cote gauche, dans la zone de securite */
+softRobin(X, 830, 1190, 1.34, { emo:'shock', look:0.35 });
+
+/* Titre : une seule plaque blanche a contour sombre et ombre dure,
+   comme les bulles de dialogue. Les trois lignes tiennent dans la zone sure. */
+(function(){
+  const cx = 1710;
+  X.save();
+  X.font = '800 126px "DejaVu Sans", sans-serif';
+  const t1='LES VIDÉOS', t2='DE ROBIN', t3='ça se passe jamais comme prévu';
+  const w1 = X.measureText(t1).width;
+  X.font = '800 142px "DejaVu Sans", sans-serif';
+  const w2 = X.measureText(t2).width;
+  X.font = '700 46px "DejaVu Sans", sans-serif';
+  const w3 = X.measureText(t3).width;
+  const bw = Math.max(w1,w2,w3) + 150, bh = 396, r = 78;
+  const x = cx - bw/2, y = SAFE.y + 14;
+  X.fillStyle='rgba(42,42,51,0.92)';
+  X.beginPath(); X.roundRect(x+11, y+14, bw, bh, r); X.fill();
+  X.fillStyle='#fff';
+  X.beginPath(); X.roundRect(x, y, bw, bh, r); X.fill();
+  X.strokeStyle=SOFT.ink; X.lineWidth=13; X.lineJoin='round'; X.stroke();
+  X.fillStyle=SOFT.ink; X.textAlign='center'; X.textBaseline='middle';
+  X.font='800 126px "DejaVu Sans", sans-serif'; X.fillText(t1, cx, y+108);
+  X.font='800 142px "DejaVu Sans", sans-serif'; X.fillText(t2, cx, y+236);
+  X.font='700 46px "DejaVu Sans", sans-serif';
+  X.fillStyle=SOFT.inkSoft;                     X.fillText(t3, cx, y+332);
+  X.restore();
+})();
+
+if (location.search.includes('guides')){
+  X.save(); X.strokeStyle='#ff0044'; X.lineWidth=6; X.setLineDash([24,18]);
+  X.strokeRect(SAFE.x, SAFE.y, SAFE.w, SAFE.h); X.restore();
+}
+</script>
+</body></html>
