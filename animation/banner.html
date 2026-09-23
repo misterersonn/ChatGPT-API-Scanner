@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Banniere</title>
+<style>html,body{margin:0;background:#222}canvas{display:block}</style></head>
+<body>
+<canvas id="c" width="2560" height="1440"></canvas>
+<script>window.AUTOPLAY=false;</script>
+<script src="engine.js"></script>
+<script>
+/* Banniere YouTube — 2560x1440.
+   Zone de securite (visible sur tous les ecrans, mobile compris) :
+   1546x423 centree, soit x 507..2053 et y 508..931.
+   Tout ce qui compte (titre, tete de Robin) reste dedans.
+   Le reste du cadre habille l'affichage desktop. */
+const B = document.getElementById('c').getContext('2d');
+const BW = 2560, BH = 1440;   // W et H sont deja pris par engine.js
+const SAFE = { x:(BW-1546)/2, y:(BH-423)/2, w:1546, h:423 };
+
+/* --- fond --- */
+B.fillStyle = '#efe2bc'; B.fillRect(0,0,BW,BH);
+// bandeau mural haut, facon signaletique
+B.fillStyle = '#f0d84a'; B.fillRect(0,0,BW,140);
+B.beginPath(); B.moveTo(0,140); B.lineTo(BW,140);
+B.lineWidth=14; B.strokeStyle='#000'; B.stroke();
+// sol
+B.fillStyle = '#b9854f'; B.fillRect(0,1190,BW,250);
+B.beginPath(); B.moveTo(0,1190); B.lineTo(BW,1190); B.lineWidth=14; B.stroke();
+B.fillStyle = '#cd9a63'; B.fillRect(0,1194,BW,22);
+
+/* mouchetures de papier peint */
+(function(){
+  const r = mulberry32(424242);
+  B.strokeStyle='#cfc199'; B.lineWidth=3; B.lineCap='round';
+  for(let i=0;i<150;i++){
+    const x=r()*BW, y=150+r()*1000, a=r()*Math.PI, s=5+r()*7, n=2+Math.floor(r()*3);
+    for(let k=0;k<n;k++){
+      const ang=a+k*(Math.PI*2/n);
+      B.beginPath(); B.moveTo(x,y); B.lineTo(x+Math.cos(ang)*s, y+Math.sin(ang)*s); B.stroke();
+    }
+  }
+})();
+
+/* --- accessoires hors zone de securite, pour habiller le desktop --- */
+function parcel(x,y,s,rot){
+  B.save(); B.translate(x,y); B.rotate(rot); B.scale(s,s);
+  B.beginPath(); B.rect(-120,-90,240,180); B.fillStyle='#c9a26a'; B.fill();
+  B.lineWidth=12; B.strokeStyle='#000'; B.lineJoin='round'; B.stroke();
+  B.beginPath(); B.moveTo(0,-90); B.lineTo(0,90); B.lineWidth=10; B.stroke();
+  B.beginPath(); B.rect(-46,-30,92,60); B.fillStyle='#fff8ec'; B.fill(); B.lineWidth=8; B.stroke();
+  B.restore();
+}
+parcel(250, 1010, 1.0, -0.12);
+parcel(520, 1085, 0.7,  0.16);
+parcel(2330, 1000, 1.05, 0.10);
+parcel(2085, 1095, 0.65,-0.14);
+
+/* --- Robin, dans la zone de securite --- */
+(function(){
+  B.save();
+  const scale = 0.92;
+  B.translate(SAFE.x + 250, SAFE.y + SAFE.h/2 + 40);
+  B.scale(scale, scale);
+  B.translate(-360, -620);
+  drawBody('R', {lift:0});
+  drawHead('R', {rot:-0.05, sx:1, sy:1, nod:0, emo:'shock', blink:false, look:0, mouth:'O'});
+  B.restore();
+})();
+
+/* --- titre --- */
+function titleLine(txt, cx, cy, size, weight){
+  B.save();
+  B.font = 'bold ' + size + 'px "Liberation Sans Narrow","DejaVu Sans",sans-serif';
+  B.textAlign='left'; B.textBaseline='middle'; B.lineJoin='round';
+  B.scale(0.88, 1);
+  const x = cx/0.88;
+  B.shadowColor='rgba(0,0,0,0.30)'; B.shadowBlur=16; B.shadowOffsetY=9;
+  B.lineWidth = size*0.21; B.strokeStyle='#000'; B.strokeText(txt, x, cy);
+  B.shadowColor='transparent';
+  B.fillStyle='#fff'; B.fillText(txt, x, cy);
+  B.restore();
+}
+const TX = SAFE.x + 520;
+titleLine('LES VIDÉOS', TX, SAFE.y + 95, 132);
+titleLine('DE ROBIN',   TX, SAFE.y + 235, 176);
+
+/* sous-titre */
+B.save();
+B.font='bold 54px "Liberation Sans Narrow","DejaVu Sans",sans-serif';
+B.textAlign='left'; B.textBaseline='middle'; B.lineJoin='round';
+B.lineWidth=14; B.strokeStyle='#000';
+B.strokeText('ça se passe jamais comme prévu', TX+6, SAFE.y + 360);
+B.fillStyle='#2b2b2b';
+B.fillText('ça se passe jamais comme prévu', TX+6, SAFE.y + 360);
+B.restore();
+
+/* --- reperes de zone de securite, actives par ?guides --- */
+if (location.search.includes('guides')){
+  B.save(); B.strokeStyle='#ff0044'; B.lineWidth=6; B.setLineDash([24,18]);
+  B.strokeRect(SAFE.x, SAFE.y, SAFE.w, SAFE.h);
+  B.setLineDash([]); B.strokeStyle='#0088ff'; B.lineWidth=4;
+  B.strokeRect(0, 0, BW, BH);
+  B.restore();
+}
+</script>
+</body></html>

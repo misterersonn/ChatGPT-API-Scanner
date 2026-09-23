@@ -15,6 +15,10 @@ et la marche à suivre pour produire un épisode.
 | `ep01-la-poste.mp4` | Le pilote : 720×1280, 25 i/s, 21 s, muet. |
 | `sheet.html` + `render_sheet.js` | Planche de référence → `style_reference.png`. |
 | `robin.html` + `render_robin.js` | Pistes de design pour Robin → `robin_pistes.png`. |
+| `banner.html` + `render_banner.js` | Bannière de chaîne 2560×1440 → `banniere_chaine.png`. `node render_banner.js --guides` ajoute les repères de zone de sécurité. |
+| `tools/lipsync.py` | Piste de bouche calculée sur l'enveloppe audio d'une réplique. |
+| `tools/retime.py` | Recale une timeline sur les durées réelles des fichiers voix. |
+| `tools/cb_generate.py` | Génération de voix avec validation par les syllabes. |
 | `ANALYSE.md` | Relevés image et son faits sur la vidéo de référence. |
 | `HIGGSFIELD.md` | Appel Recraft préparé, et état du blocage côté plan. |
 | `scene.html`, `demo_animation.mp4` | Le prototype d'origine, conservé. |
