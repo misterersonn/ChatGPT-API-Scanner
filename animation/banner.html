@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Banniere</title>
+<style>html,body{margin:0;background:#222}canvas{display:block}</style></head>
+<body>
+<canvas id="c" width="2560" height="1440"></canvas>
+<script>window.AUTOPLAY=false;</script>
+<script src="engine.js"></script>
+<script>
+/* Banniere YouTube 2560x1440, batie sur le decor de l'episode 01.
+   Robin cote public a gauche, l'agent derriere son guichet a droite,
+   le comptoir traverse toute la largeur. Memes fonctions de dessin que
+   les episodes : rien n'est redessine a part.
+   Zone de securite (visible partout, mobile compris) : 1546x423 centree.
+   Attention : engine.js occupe deja W et H, d'ou BW/BH ici. */
+const B = document.getElementById('c').getContext('2d');
+const BW = 2560, BH = 1440;
+const SAFE = { x:(BW-1546)/2, y:(BH-423)/2, w:1546, h:423 };
+
+const S = 0.62;                       // echelle monde -> banniere
+const OY = 1040 - 1010*S;             // le comptoir tombe a y=1040
+const OX_L = 430 - 360*S;             // Robin centre a x=430
+const OX_R = 2130 - 360*S;            // l'agent centre a x=2130
+
+/* 1. le mur d'abord, pour qu'aucun bord de decor ne laisse de trou */
+B.fillStyle='#efe2bc'; B.fillRect(0,0,BW,BH);
+B.fillStyle=COL.ceiling; B.fillRect(0,0,BW,150);
+B.beginPath(); B.moveTo(0,150); B.lineTo(BW,150); B.lineWidth=12; B.strokeStyle='#000'; B.stroke();
+
+/* 2. chaque moitie : son decor et son personnage */
+function side(clipX, clipW, ox, bg, who, emo, mouth, rot){
+  B.save();
+  B.beginPath(); B.rect(clipX, 0, clipW, BH); B.clip();
+  B.translate(ox, OY); B.scale(S, S);
+  bg();
+  drawBody(who, {lift:0});
+  drawHead(who, {rot:rot, sx:1, sy:1, nod:0, emo:emo, blink:false, look:0, mouth:mouth});
+  B.restore();
+}
+side(0,    1280, OX_L, bgPosteFront, 'R', 'shock', 'O',      -0.05);
+side(1280, 1280, OX_R, bgPosteBack,  'S', 'smug',  'closed',  0.04);
+
+/* 3. le comptoir traverse toute la largeur */
+B.fillStyle='#b9854f'; B.fillRect(0,1040,BW,BH-1040);
+B.beginPath(); B.moveTo(0,1040); B.lineTo(BW,1040); B.lineWidth=14; B.strokeStyle='#000'; B.stroke();
+B.fillStyle='#cd9a63'; B.fillRect(0,1044,BW,22);
+
+/* 4. mains et accessoires, par-dessus le comptoir */
+function props(ox, who){
+  B.save(); B.translate(ox, OY); B.scale(S,S);
+  drawCounterProps({lift:0}, who);
+  B.restore();
+}
+props(OX_L, 'R');
+props(OX_R, 'S');
+
+/* 5. colis poses sur le comptoir, hors zone de securite */
+function parcel(x,y,s,rot){
+  B.save(); B.translate(x,y); B.rotate(rot); B.scale(s,s);
+  B.beginPath(); B.rect(-110,-82,220,164); B.fillStyle='#c9a26a'; B.fill();
+  B.lineWidth=12; B.strokeStyle='#000'; B.lineJoin='round'; B.stroke();
+  B.beginPath(); B.moveTo(0,-82); B.lineTo(0,82); B.lineWidth=10; B.stroke();
+  B.beginPath(); B.rect(-42,-28,84,56); B.fillStyle='#fff8ec'; B.fill(); B.lineWidth=8; B.stroke();
+  B.restore();
+}
+parcel(150, 1230, 0.85, -0.10);
+parcel(2420, 1240, 0.80, 0.12);
+
+/* 6. titre, au centre de la zone de securite */
+function titleLine(txt, cx, cy, size, fill){
+  B.save();
+  B.font='bold '+size+'px "Liberation Sans Narrow","DejaVu Sans",sans-serif';
+  B.textAlign='center'; B.textBaseline='middle'; B.lineJoin='round';
+  B.scale(0.88, 1);
+  B.shadowColor='rgba(0,0,0,0.32)'; B.shadowBlur=18; B.shadowOffsetY=10;
+  B.lineWidth=size*0.22; B.strokeStyle='#000'; B.strokeText(txt, cx/0.88, cy);
+  B.shadowColor='transparent';
+  B.fillStyle=fill||'#fff'; B.fillText(txt, cx/0.88, cy);
+  B.restore();
+}
+const CX = BW/2;
+titleLine('LES VIDÉOS', CX, SAFE.y + 118, 128);
+titleLine('DE ROBIN',   CX, SAFE.y + 262, 178);
+titleLine('ça se passe jamais comme prévu', CX, SAFE.y + 378, 52);
+
+if (location.search.includes('guides')){
+  B.save(); B.strokeStyle='#ff0044'; B.lineWidth=6; B.setLineDash([24,18]);
+  B.strokeRect(SAFE.x, SAFE.y, SAFE.w, SAFE.h); B.restore();
+}
+</script>
+</body></html>

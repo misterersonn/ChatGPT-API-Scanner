@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><title>Model sheet</title>
+<style>html,body{margin:0;background:#fff}canvas{display:block}</style></head>
+<body>
+<canvas id="c" width="1560" height="1980"></canvas>
+<script>window.AUTOPLAY = false;</script>
+<script src="engine.js"></script>
+<script>
+/* Planche de référence : expressions, visèmes, échelles de plan.
+   Sert de style reference à fournir à un générateur d'images
+   (workflow character-sheet) et de contrôle visuel pour l'animation. */
+const S = document.getElementById('c').getContext('2d');
+S.fillStyle = '#fff'; S.fillRect(0,0,1560,1980);
+
+function label(t,x,y,size){
+  S.save(); S.fillStyle='#111';
+  S.font = (size||26)+'px "DejaVu Sans", sans-serif';
+  S.textAlign='left'; S.textBaseline='alphabetic'; S.fillText(t,x,y); S.restore();
+}
+function title(t,x,y){
+  S.save(); S.fillStyle='#111';
+  S.font='bold 40px "Liberation Sans Narrow","DejaVu Sans",sans-serif';
+  S.textAlign='left'; S.fillText(t,x,y); S.restore();
+}
+
+/* --- têtes : 2 persos x 5 émotions --- */
+const EMOS = ['flat','happy','angry','shock','smug'];
+title('Expressions', 40, 62);
+EMOS.forEach((emo,i)=>{
+  ['A','B'].forEach((who,r)=>{
+    const cx = 250 + i*270, cy = 230 + r*390;
+    S.save();
+    S.translate(cx,cy); S.scale(0.62,0.62); S.translate(-360,-560);
+    drawHead(who, {
+      rot:0, sx:1, sy:1, nod:0, emo,
+      blink:false, look:0,
+      mouth: emo==='happy'?'smile' : emo==='shock'?'O' : emo==='angry'?'frown' : 'closed'
+    });
+    S.restore();
+  });
+  label(emo, 250 + i*270 - 36, 392, 24);
+});
+label('joueur', 40, 238, 28); label('mamie', 40, 628, 28);
+
+/* --- visèmes --- */
+title('Visèmes (substitution de bouche)', 40, 830);
+const VIS = ['closed','M','C','F','A','E','I','O','U'];
+VIS.forEach((v,i)=>{
+  const x = 120 + i*162, y = 950;
+  S.save(); S.strokeStyle='#ccc'; S.lineWidth=2; S.strokeRect(x-70,y-70,140,140); S.restore();
+  S.save(); S.translate(x,y); S.scale(0.95,0.95); mouthShape(v,0,0,1); S.restore();
+  label(v, x-14, y+104, 22);
+});
+
+/* --- échelles de plan --- */
+title('Échelles de plan', 40, 1170);
+const NAMES = ['wide','med','cu','xcu'];
+NAMES.forEach((n,i)=>{
+  const sh = SHOTS[n];
+  const ox = 60 + i*370, oy = 1210, w = 320, h = 560;
+  S.save();
+  S.beginPath(); S.rect(ox,oy,w,h); S.clip();
+  S.translate(ox + w/2, oy + h*0.46);
+  const k = w/720;
+  S.scale(sh.s*k, sh.s*k);
+  S.rotate(sh.rot);
+  S.translate(-sh.fx, -sh.fy);
+  const who = i%2 ? 'B' : 'A';
+  if (who==='A') bgA(); else bgB();
+  box(158,470,30,580,COL.woodDark,8); box(532,470,30,580,COL.woodDark,8);
+  box(168,806,384,34,COL.wood,8);     box(168,902,384,32,COL.wood,8);
+  const pose = {rot:0,sx:1,sy:1,nod:0,emo:'flat',blink:false,look:0,mouth:'closed',lift:0,fan:0};
+  drawBody(who,pose); drawHead(who,pose); drawTable(); drawHandCards(pose);
+  S.restore();
+  S.save(); S.strokeStyle='#111'; S.lineWidth=3; S.strokeRect(ox,oy,w,h); S.restore();
+  label(n + '  (x' + sh.s + ')', ox, oy + h + 34, 24);
+});
+
+/* --- palette verrouillée --- */
+title('Palette (relevée sur la référence)', 40, 1870);
+const PAL = ['#e8e39c','#c66843','#755649','#b27954','#edccb0','#1ca597','#c78cc5','#f3e5b0','#fdfdfd','#000000'];
+PAL.forEach((hex,i)=>{
+  const x = 40 + i*152, y = 1895;
+  S.fillStyle = hex; S.fillRect(x,y,120,52);
+  S.strokeStyle='#111'; S.lineWidth=2; S.strokeRect(x,y,120,52);
+  label(hex, x, y+74, 20);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Robin - pistes</title>
+<style>html,body{margin:0;background:#fff}canvas{display:block}</style></head>
+<body>
+<canvas id="c" width="1520" height="1180"></canvas>
+<script>window.AUTOPLAY=false;</script>
+<script src="engine.js"></script>
+<script>
+/* Quatre pistes de design pour Robin, meme style, meme squelette. */
+const S=document.getElementById('c').getContext('2d');
+S.fillStyle='#fff'; S.fillRect(0,0,1520,1180);
+
+CHARS.R1={ skin:'#edccb0', top:'#d9534f', hair:{style:'cap', color:'#6b4a32', part:0.09}, glasses:false, wrinkles:false, mouthY:648 };
+CHARS.R2={ skin:'#edccb0', top:'#3f7bc4', hair:{style:'mop', color:'#3a2a1e'},            glasses:false, wrinkles:false, mouthY:648 };
+CHARS.R3={ skin:'#edccb0', top:'#1ca597', hair:{style:'none'},                            glasses:false, wrinkles:false, mouthY:648 };
+CHARS.R4={ skin:'#edccb0', top:'#e8c34a', hair:{style:'curly', color:'#8a5a3a'},           glasses:true,  wrinkles:false, mouthY:648 };
+
+const PISTES=[
+ ['R1','A  cheveux courts, raie'],
+ ['R2','B  frange en meches'],
+ ['R3','C  crane nu (proche de la ref)'],
+ ['R4','D  boucles + lunettes']
+];
+
+function txt(t,x,y,size,bold){
+  S.save(); S.fillStyle='#111';
+  S.font=(bold?'bold ':'')+(size||26)+'px "DejaVu Sans",sans-serif';
+  S.textAlign='left'; S.fillText(t,x,y); S.restore();
+}
+txt('Robin — quatre pistes',40,58,40,true);
+
+PISTES.forEach(([id,label],i)=>{
+  const ox=40+i*370;
+  // plan taille
+  S.save();
+  S.beginPath(); S.rect(ox,100,330,600); S.clip();
+  S.translate(ox+165,100+600*0.44);
+  const k=330/720*1.05;
+  S.scale(k,k); S.translate(-360,-620);
+  bgA();
+  box(158,470,30,580,COL.woodDark,8); box(532,470,30,580,COL.woodDark,8);
+  box(168,806,384,34,COL.wood,8); box(168,902,384,32,COL.wood,8);
+  const pose={rot:0,sx:1,sy:1,nod:0,emo:'flat',blink:false,look:0,mouth:'closed',lift:0,fan:0};
+  drawBody(id,pose); drawHead(id,pose); drawTable(); drawHandCards(pose,id);
+  S.restore();
+  S.save(); S.strokeStyle='#111'; S.lineWidth=3; S.strokeRect(ox,100,330,600); S.restore();
+  txt(label,ox,740,26,true);
+
+  // trois expressions
+  ['happy','angry','shock'].forEach((emo,j)=>{
+    S.save();
+    S.translate(ox+58+j*108, 880);
+    S.scale(0.27,0.27); S.translate(-360,-560);
+    drawHead(id,{rot:0,sx:1,sy:1,nod:0,emo,blink:false,look:0,
+      mouth: emo==='happy'?'smile':emo==='shock'?'O':'frown'});
+    S.restore();
+    txt(emo, ox+30+j*108, 990, 20);
+  });
+});
+txt('Contour porte a 12 px (≈3,3 % du diametre de tete) — valeur relevee sur la video de reference',40,1090,24);
+txt('Tete parfaitement circulaire, ratio H/L = 1,00 — egalement releve sur la reference',40,1130,24);
+</script>
+</body></html>
