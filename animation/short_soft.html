@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Court - style doux</title>
+<style>html,body{margin:0;background:#111;display:flex;justify-content:center}canvas{display:block;width:405px;height:720px}</style></head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="soft.js"></script>
+<script>
+/* Court vertical, style doux. 1080x1920, 30 i/s, 19 s.
+   La courbe d'energie et le rythme des coupes reprennent ceux releves sur
+   la video de reference : trois plans denses, une respiration presque muette
+   de 3 a 6 s, une bascule a 6 s, puis un pic a 16 s.
+   Histoire, personnages et dialogues sont originaux. */
+const K = document.getElementById('c').getContext('2d');
+const VW = 1080, VH = 1920, FPS = 30, DUR = 19;
+const NFRAMES = FPS * DUR;
+const GROUND = 1460;
+
+/* --- decoupage : [debut, fin, plan, focus x, focus y] --- */
+const SHOTS = [
+  [0.0,  2.1, 1.05, 480, 1180],
+  [2.1,  3.1, 1.70, 430, 1060],
+  [3.1,  4.1, 1.10, 620, 1180],
+  [4.1,  5.1, 2.00, 760, 1230],
+  [5.1,  6.6, 1.85, 420, 1060],
+  [6.6,  8.6, 1.15, 590, 1180],
+  [8.6, 10.3, 1.55, 700, 1180],
+  [10.3,12.6, 1.35, 700, 1190],
+  [12.6,14.3, 1.10, 470, 1190],
+  [14.3,15.8, 1.70, 250, 1230],
+  [15.8,16.7, 2.15, 215, 1060],
+  [16.7,19.0, 1.05, 460, 1190]
+];
+function shotAt(t){ for(const s of SHOTS) if(t>=s[0] && t<s[1]) return s; return SHOTS[SHOTS.length-1]; }
+const ease = u => u<0.5 ? 2*u*u : 1-Math.pow(-2*u+2,2)/2;
+const clamp01 = u => Math.max(0, Math.min(1, u));
+
+/* --- repliques --- */
+const LINES = [
+  [0.5,  2.0, 'Le dernier pain au chocolat', 540, 430, 52],
+  [6.9,  8.4, 'Tiens.',                      540, 430, 62],
+  [10.6,12.3,'...',                          540, 430, 56],
+  [17.1,18.8,'ça se passe jamais comme prévu',540, 430, 50]
+];
+
+function draw(f){
+  const t = f / FPS;
+  const sh = shotAt(t);
+  const u = clamp01((t - sh[0]) / (sh[1] - sh[0]));
+
+  /* positions dans le monde */
+  const robinX = t < 2.1 ? -180 + ease(clamp01(t/1.7)) * 600
+               : t < 12.6 ? 420
+               : 420 - ease(clamp01((t-12.6)/1.8)) * 210;   // s'eloigne puis s'arrete a 210
+  const robinBob = Math.sin(t*7.5)*6 * (t<1.7 || (t>12.6&&t<14.4) ? 1 : 0.25);
+
+  const kidVisible = t >= 3.3;
+  const kidX = 760;
+
+  /* le gateau : chez Robin, puis tendu, puis chez le petit */
+  let pastryX, pastryY, pastryS = 1.0, pastryRot = -0.12;
+  if (t < 6.6){ pastryX = robinX + 158; pastryY = GROUND - 195 + robinBob; }
+  else if (t < 8.6){
+    const k = ease(clamp01((t-6.9)/1.2));
+    pastryX = 578 + k*150; pastryY = GROUND - 240 - Math.sin(k*Math.PI)*70 + robinBob;
+  } else { pastryX = kidX - 96; pastryY = GROUND - 150 + Math.sin(t*6)*5; }
+
+  /* camera */
+  const s = sh[2] * (1 + u*0.035);
+  K.save();
+  K.clearRect(0,0,VW,VH);
+  K.translate(VW/2, VH*0.5);
+  const shake = (t>15.8 && t<16.2) ? Math.sin(t*90)*7 : 0;
+  K.translate(shake, 0);
+  K.scale(s, s);
+  K.translate(-sh[3], -sh[4]);
+
+  /* decor */
+  K.save(); K.translate(-VW, -400); softSky(K, VW*3, VH+400, GROUND - 330 + 400); K.restore();
+  K.save(); K.translate(-VW, 0);
+  softCloud(K, 300, 260, 1.1); softCloud(K, 1180, 180, 0.85);
+  softCloud(K, 2100, 300, 1.3); softCloud(K, 2900, 200, 1.0);
+  K.restore();
+  K.save(); K.translate(-VW, 0); softHills(K, VW*3, GROUND-330); K.restore();
+  K.save(); K.translate(-VW, 0); softFence(K, VW*3, GROUND-470, 170); K.restore();
+  K.save(); K.translate(-VW, 0); softGrass(K, VW*3, VH+700, GROUND-320, 424242); K.restore();
+
+  /* personnages */
+  if (kidVisible){
+    const pop = ease(clamp01((t-3.3)/0.5));
+    const bounce = (t>10.3 && t<12.6) ? Math.abs(Math.sin((t-10.3)*6))*22 : 0;
+    softKid(K, kidX, GROUND - bounce, 1.0*pop,
+            { emo: t>8.6 ? 'happy' : 'big', armUp: t>6.9 && t<9.2 });
+  }
+  const robinEmo = t<2.1 ? 'happy' : (t<3.1 ? 'happy' : (t<6.6 ? 'flat' : (t<12.6 ? 'happy' : 'flat')));
+  softRobin(K, robinX, GROUND + robinBob*0.3, 1.0,
+            { emo: (t>15.8&&t<16.7) ? 'shock' : robinEmo,
+              look: t>3.3 && t<6.6 ? 0.9 : 0,
+              armUp: t>6.9 && t<8.8 });
+  softPastry(K, pastryX, pastryY, pastryS, pastryRot);
+
+  /* coeurs quand le petit recoit */
+  if (t>8.8 && t<11.6){
+    const n=6;
+    for(let i=0;i<n;i++){
+      const p = ((t-8.8)*0.5 + i/n) % 1;
+      softHeart(K, kidX - 70 + i*32, GROUND-420 - p*240, 1.5 + p, 1-p);
+    }
+  }
+  K.restore();
+
+  /* effet sonore ecrit, sur le pic */
+  if (t>14.4 && t<15.7){
+    const a = Math.sin(clamp01((t-14.4)/1.3)*Math.PI);
+    K.save(); K.globalAlpha = a;
+    softFx(K, 'grrrrr...', VW/2 - 40, 1290, 84, '#c4562a');
+    K.restore();
+  }
+
+  /* bulles */
+  for (const [t0,t1,txt,bx,by,size] of LINES){
+    if (t>=t0 && t<=t1){
+      const k = clamp01((t-t0)/0.18);
+      K.save(); K.translate(bx, by); K.scale(0.75+0.25*ease(k), 0.75+0.25*ease(k));
+      softBubble(K, 0, 0, txt, size, 760);
+      K.restore();
+    }
+  }
+}
+
+window.TOTAL_FRAMES = NFRAMES; window.FPS = FPS; window.drawFrame = draw;
+let playing = true; window.stopPlayback = ()=>{ playing=false; };
+const t0 = performance.now();
+(function loop(){ if(!playing) return;
+  draw(Math.floor(((performance.now()-t0)/1000 % DUR)*FPS)); requestAnimationFrame(loop); })();
+</script>
+</body></html>

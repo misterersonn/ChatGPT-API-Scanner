@@ -197,3 +197,93 @@ function softRobin(ctx, cx, baseY, s, opt){
   }
   ctx.restore();
 }
+
+/* ============ Ajouts pour le format court ============ */
+
+/* Petit personnage, plus rond et plus bas que Robin. Design original. */
+function softKid(ctx, cx, baseY, s, opt){
+  opt = opt || {};
+  const emo = opt.emo || 'flat';
+  ctx.save(); ctx.translate(cx, baseY); ctx.scale(s, s);
+  sShadow(ctx, 0, 4, 84, 16, 0.14);
+  // corps rond
+  ctx.fillStyle = sGrad(ctx,0,-170,0,0,'#8fc3e8','#6ba3cc');
+  ctx.beginPath();
+  ctx.moveTo(-72,0);
+  ctx.quadraticCurveTo(-88,-110,-52,-152);
+  ctx.quadraticCurveTo(0,-186,52,-152);
+  ctx.quadraticCurveTo(88,-110,72,0);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='rgba(42,42,51,0.20)'; ctx.lineWidth=3; ctx.stroke();
+  // bras
+  ctx.strokeStyle='#5b93bc'; ctx.lineWidth=12; ctx.lineCap='round';
+  const up = opt.armUp ? -1 : 1;
+  ctx.beginPath(); ctx.moveTo(-64,-92); ctx.quadraticCurveTo(-104,-74,-112,-74-up*-52); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo( 64,-92); ctx.quadraticCurveTo( 104,-74, 112,-74-up*-52); ctx.stroke();
+  // tete
+  const hy=-212;
+  ctx.fillStyle = sGrad(ctx,0,hy-88,0,hy+82,'#f8e0c6','#ebc9a8');
+  ctx.beginPath(); ctx.ellipse(0,hy,88,84,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='rgba(42,42,51,0.18)'; ctx.lineWidth=3; ctx.stroke();
+  // petite touffe
+  ctx.fillStyle='#3f2d1f';
+  ctx.beginPath(); ctx.moveTo(-6,hy-84); ctx.quadraticCurveTo(22,hy-116,30,hy-80);
+  ctx.quadraticCurveTo(12,hy-92,-6,hy-84); ctx.fill();
+  ctx.fillStyle = sGrad(ctx,0,hy-88,0,hy-20,'#4a3524','#3a2819');
+  ctx.beginPath();
+  ctx.moveTo(-86,hy-14); ctx.quadraticCurveTo(-82,hy-92,0,hy-88);
+  ctx.quadraticCurveTo(84,hy-90,86,hy-12);
+  ctx.quadraticCurveTo(40,hy-44,4,hy-30);
+  ctx.quadraticCurveTo(-40,hy-18,-86,hy-14); ctx.closePath(); ctx.fill();
+  // yeux, tres grands
+  const ew = emo==='big' ? 34 : 28, eh = emo==='big' ? 38 : 32;
+  [-36,36].forEach(dx=>{
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.ellipse(dx,hy+14,ew,eh,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(42,42,51,0.18)'; ctx.lineWidth=2.5; ctx.stroke();
+    ctx.fillStyle=SOFT.ink;
+    ctx.beginPath(); ctx.ellipse(dx,hy+18,ew*0.44,eh*0.46,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.ellipse(dx-ew*0.18,hy+18-eh*0.22,ew*0.17,eh*0.18,0,0,Math.PI*2); ctx.fill();
+  });
+  ctx.save(); ctx.globalAlpha=0.5; ctx.fillStyle=SOFT.blush;
+  ctx.beginPath(); ctx.ellipse(-62,hy+46,17,10,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse( 62,hy+46,17,10,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle=SOFT.ink; ctx.lineWidth=7; ctx.lineCap='round';
+  if (emo==='happy'){ ctx.beginPath(); ctx.arc(0,hy+40,24,0.2*Math.PI,0.8*Math.PI); ctx.stroke(); }
+  else { ctx.beginPath(); ctx.moveTo(-13,hy+54); ctx.lineTo(13,hy+54); ctx.stroke(); }
+  ctx.restore();
+}
+
+/* Viennoiserie tenue en main */
+function softPastry(ctx, cx, cy, s, rot){
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(rot||0); ctx.scale(s,s);
+  ctx.fillStyle = sGrad(ctx,0,-28,0,28,'#e0a95e','#c98a3f');
+  ctx.beginPath(); ctx.roundRect(-52,-30,104,60,16); ctx.fill();
+  ctx.strokeStyle='rgba(42,42,51,0.24)'; ctx.lineWidth=3; ctx.stroke();
+  ctx.fillStyle='#6b4527';
+  ctx.beginPath(); ctx.roundRect(-30,-30,11,60,5); ctx.fill();
+  ctx.beginPath(); ctx.roundRect( 19,-30,11,60,5); ctx.fill();
+  ctx.restore();
+}
+
+function softHeart(ctx, cx, cy, s, a){
+  ctx.save(); ctx.globalAlpha=a===undefined?1:a;
+  ctx.translate(cx,cy); ctx.scale(s,s); ctx.fillStyle='#f2647a';
+  ctx.beginPath();
+  ctx.moveTo(0,14);
+  ctx.bezierCurveTo(-20,-4,-14,-22,0,-12);
+  ctx.bezierCurveTo(14,-22,20,-4,0,14);
+  ctx.fill(); ctx.restore();
+}
+
+/* Texte d'effet, facon onomatopee */
+function softFx(ctx, txt, cx, cy, size, col){
+  ctx.save();
+  ctx.font='800 '+size+'px "DejaVu Sans", sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.lineJoin='round';
+  ctx.lineWidth=size*0.22; ctx.strokeStyle='#fff'; ctx.strokeText(txt,cx,cy);
+  ctx.fillStyle=col||'#d65b2b'; ctx.fillText(txt,cx,cy);
+  ctx.restore();
+}

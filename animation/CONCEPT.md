@@ -121,3 +121,37 @@ Relevés sur le pilote :
 **Limite connue** : la transposition par rééchantillonnage déplace les formants.
 Au-delà de 4 ou 5 demi-tons, le timbre se dégrade. La boucle vise donc des prises
 dont la hauteur naturelle est déjà proche de la cible, plutôt que de transposer fort.
+
+## Seconde direction graphique : le style doux
+
+Une deuxième famille visuelle coexiste avec les aplats, dans `soft.js`.
+Relevés faits sur l'animation de référence fournie par l'utilisateur :
+
+| Mesure | Style doux | Style plat |
+| --- | --- | --- |
+| Couleurs distinctes | ~27 600 | ~6 500 |
+| Ciel | dégradé vertical `#b3d2fd` → `#c7d2ef` | aplat uni |
+| Contours personnages | fins et translucides | noir 12 px |
+| Formes | molles, ombres portées douces | géométriques, tranchées |
+
+`soft.js` fournit : ciel en dégradé, collines en couches, clôture, herbe avec
+touffes, nuages, bulles blanches à contour sombre et ombre décalée nette,
+Robin et un second personnage redessinés dans ce traitement, plus quelques
+accessoires (viennoiserie, cœurs, onomatopées).
+
+Les deux moteurs ne partagent aucune variable globale et se rendent
+indépendamment.
+
+### Le court `robin_court_doux.mp4`
+
+19 s, 1080×1920, 30 i/s, muet. Sa **courbe d'énergie et son rythme de coupes**
+reprennent ceux relevés sur une vidéo de référence : trois plans denses au
+début, une respiration presque muette entre 3 et 6 s, une bascule à 6 s, puis
+un pic à 16 s. Onze coupes au total.
+
+Histoire, personnages, décor et dialogues sont originaux — seule la structure
+de montage est reprise.
+
+**Pas de bande son.** La musique de la référence appartient à son auteur. Pour
+en mettre une sous licence, passer par la bibliothèque sonore de la plateforme
+de publication plutôt que d'extraire la piste d'origine.
